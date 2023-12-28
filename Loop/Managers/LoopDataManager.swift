@@ -2537,7 +2537,8 @@ extension LoopDataManager: ServicesManagerDelegate {
     
     //Carb Entry
     
-    func deliverCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?) async throws {
+    func deliverCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?,
+                      preDeliverHandler: (NewCarbEntry) async -> Void) async throws {
         
         let absorptionTime = absorptionTime ?? carbStore.defaultAbsorptionTimes.medium
         if absorptionTime < LoopConstants.minCarbAbsorptionTime || absorptionTime > LoopConstants.maxCarbAbsorptionTime {
@@ -2563,7 +2564,13 @@ extension LoopDataManager: ServicesManagerDelegate {
         let quantity = HKQuantity(unit: .gram(), doubleValue: amountInGrams)
         let candidateCarbEntry = NewCarbEntry(quantity: quantity, startDate: startDate ?? Date(), foodType: foodType, absorptionTime: absorptionTime)
         
-        let _ = try await devliverCarbEntry(candidateCarbEntry)
+        await preDeliverHandler(candidateCarbEntry)
+        
+        let _ = try await deliverCarbEntry(candidateCarbEntry)
+    }
+    
+    func recommendBolus(newCarbEntry: NewCarbEntry) async throws -> ManualBolusRecommendation? {
+        return try recommendBolus(consideringPotentialCarbEntry: newCarbEntry, replacingCarbEntry: nil, considerPositiveVelocityAndRC: FeatureFlags.usePositiveMomentumAndRCForManualBoluses)
     }
     
     enum CarbActionError: LocalizedError {
@@ -2602,7 +2609,7 @@ extension LoopDataManager: ServicesManagerDelegate {
     }
     
     //Can't add this concurrency wrapper method to LoopKit due to the minimum iOS version
-    func devliverCarbEntry(_ carbEntry: NewCarbEntry) async throws -> StoredCarbEntry {
+    func deliverCarbEntry(_ carbEntry: NewCarbEntry) async throws -> StoredCarbEntry {
         return try await withCheckedThrowingContinuation { continuation in
             carbStore.addCarbEntry(carbEntry) { result in
                 switch result {

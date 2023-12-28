@@ -233,12 +233,14 @@ class ServicesManager {
 
 public protocol ServicesManagerDosingDelegate: AnyObject {
     func deliverBolus(amountInUnits: Double) async throws
+    func recommendBolus(newCarbEntry: NewCarbEntry) async throws -> ManualBolusRecommendation?
 }
 
 public protocol ServicesManagerDelegate: AnyObject {
     func enactOverride(name: String, duration: TemporaryScheduleOverride.Duration?, remoteAddress: String) async throws
     func cancelCurrentOverride() async throws
-    func deliverCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?) async throws
+    func deliverCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?,
+                      preDeliverHandler: (NewCarbEntry) async -> Void) async throws
 }
 
 // MARK: - StatefulPluggableDelegate
@@ -317,9 +319,40 @@ extension ServicesManager: ServiceDelegate {
         await remoteDataServicesManager.triggerUpload(for: .overrides)
     }
     
-    func deliverRemoteCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?) async throws {
+    func deliverRemoteCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?, giveRecommendedBolus: Bool) async throws {
         do {
-            try await servicesManagerDelegate?.deliverCarbs(amountInGrams: amountInGrams, absorptionTime: absorptionTime, foodType: foodType, startDate: startDate)
+            try await servicesManagerDelegate?.deliverCarbs(amountInGrams: amountInGrams, absorptionTime: absorptionTime, foodType: foodType, startDate: startDate, preDeliverHandler: {(newCarbEntry : NewCarbEntry) in
+                
+                guard giveRecommendedBolus else {
+                    return
+                }
+                
+                // Give the recommended bolus just for handling the newCarbEntry, before storing the newCarbEntry.
+                // This follows the recommendation of first giving the bolus, and only then sending in the carb entry.
+                // If the bolus appears in RemoteDataServices without the carb entry, one should send a second RemoteCommand without indicating
+                // to give the recommended bolus. In any case, as prior boluses given in such fashion will count against correction,
+                // sending RemoteCommands with giveRecommendedBolus enabled until the carbs are stored will not result in "over bolusing" -
+                // at worst, the entire correction dosage will have been given
+                
+                var recommendation : ManualBolusRecommendation? = nil
+                var recommendationError: Error? = nil
+                
+                do {
+                    recommendation = try await self.servicesManagerDosingDelegate!.recommendBolus(newCarbEntry: newCarbEntry)
+                } catch {
+                    recommendationError = error
+                }
+                
+                if recommendationError != nil {
+                    await NotificationManager.sendRemoteBolusFailureNotification(for: recommendationError!, amountInUnits: 0)
+                } else if recommendation != nil && recommendation!.amount > 0 {
+                    do {
+                        try await deliverRemoteBolus(amountInUnits: recommendation!.amount)
+                    } catch {
+                        await NotificationManager.sendRemoteBolusFailureNotification(for: error, amountInUnits: recommendation!.amount)
+                    }
+                }
+            })
             await NotificationManager.sendRemoteCarbEntryNotification(amountInGrams: amountInGrams)
             await remoteDataServicesManager.triggerUpload(for: .carb)
             analyticsServicesManager.didAddCarbs(source: "Remote", amount: amountInGrams)

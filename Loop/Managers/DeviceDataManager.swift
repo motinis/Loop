@@ -1437,9 +1437,12 @@ extension Notification.Name {
 // MARK: - ServicesManagerDosingDelegate
 
 extension DeviceDataManager: ServicesManagerDosingDelegate {
-    
     func deliverBolus(amountInUnits: Double) async throws {
         try await enactBolus(units: amountInUnits, activationType: .manualNoRecommendation)
+    }
+    
+    func recommendBolus(newCarbEntry: LoopKit.NewCarbEntry) async throws -> LoopKit.ManualBolusRecommendation? {
+        return try await self.loopManager.recommendBolus(newCarbEntry: newCarbEntry)
     }
     
 }
