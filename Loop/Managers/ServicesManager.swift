@@ -319,11 +319,11 @@ extension ServicesManager: ServiceDelegate {
         await remoteDataServicesManager.triggerUpload(for: .overrides)
     }
     
-    func deliverRemoteCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?, giveRecommendedBolus: Bool) async throws {
+    func deliverRemoteCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?, bolusType: BolusType?) async throws {
         do {
             try await servicesManagerDelegate?.deliverCarbs(amountInGrams: amountInGrams, absorptionTime: absorptionTime, foodType: foodType, startDate: startDate, preDeliverHandler: {(newCarbEntry : NewCarbEntry) in
                 
-                guard giveRecommendedBolus else {
+                guard bolusType != nil else {
                     return
                 }
                 
@@ -345,11 +345,14 @@ extension ServicesManager: ServiceDelegate {
                 
                 if recommendationError != nil {
                     await NotificationManager.sendRemoteBolusFailureNotification(for: recommendationError!, amountInUnits: 0)
-                } else if recommendation != nil && recommendation!.amount > 0 {
-                    do {
-                        try await deliverRemoteBolus(amountInUnits: recommendation!.amount)
-                    } catch {
-                        await NotificationManager.sendRemoteBolusFailureNotification(for: error, amountInUnits: recommendation!.amount)
+                } else if let recommendation = recommendation {
+                    let amount = bolusType!.amount(recommendation)
+                    if amount > 0 {
+                        do {
+                            try await deliverRemoteBolus(amountInUnits: amount)
+                        } catch {
+                            await NotificationManager.sendRemoteBolusFailureNotification(for: error, amountInUnits: amount)
+                        }
                     }
                 }
             })
