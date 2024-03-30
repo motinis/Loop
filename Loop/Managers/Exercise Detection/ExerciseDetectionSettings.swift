@@ -13,7 +13,7 @@ public struct ExerciseDetectionSettings {
 
     public let detectionThreshold = TimeInterval(minutes: 8.0)
     
-    public let minimumRecency = TimeInterval(60.0)
+    public let minimumRecency = TimeInterval(minutes: 15.0)
     public let maximumSampleGap = TimeInterval(60.0)
 
     public let perMinuteThresholds: [HKQuantityType : Double] = [HKQuantityType(.stepCount): 40.0, HKQuantityType(.activeEnergyBurned) : 50.0]
