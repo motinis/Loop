@@ -176,6 +176,12 @@ final class DeviceDataManager {
         if FeatureFlags.observeHealthKitGlucoseSamplesFromOtherApps {
             readTypes.insert(HealthKitSampleStore.glucoseType)
         }
+        if FeatureFlags.observeHealthKitStepCount {
+            readTypes.insert(HKQuantityType(.stepCount))
+        }
+        if FeatureFlags.observeHealthKitActiveEnergy {
+            readTypes.insert(HKQuantityType(.activeEnergyBurned))
+        }
 
         readTypes.insert(HKObjectType.categoryType(forIdentifier: HKCategoryTypeIdentifier.sleepAnalysis)!)
 
@@ -201,6 +207,14 @@ final class DeviceDataManager {
 
     /// True if any stores require HealthKit authorization
     var authorizationRequired: Bool {
+        if FeatureFlags.observeHealthKitStepCount, healthStore.authorizationStatus(for: HKQuantityType(.stepCount)) == .notDetermined {
+            return true
+        }
+
+        if FeatureFlags.observeHealthKitActiveEnergy, healthStore.authorizationStatus(for: HKQuantityType(.activeEnergyBurned)) == .notDetermined {
+            return true
+        }
+        
         return healthStore.authorizationStatus(for: HealthKitSampleStore.glucoseType) == .notDetermined ||
                healthStore.authorizationStatus(for: HealthKitSampleStore.carbType) == .notDetermined ||
                healthStore.authorizationStatus(for: HealthKitSampleStore.insulinQuantityType) == .notDetermined ||

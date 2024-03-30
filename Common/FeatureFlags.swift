@@ -26,6 +26,8 @@ struct FeatureFlagConfiguration: Decodable {
     let observeHealthKitCarbSamplesFromOtherApps: Bool
     let observeHealthKitDoseSamplesFromOtherApps: Bool
     let observeHealthKitGlucoseSamplesFromOtherApps: Bool
+    let observeHealthKitStepCount: Bool
+    let observeHealthKitActiveEnergy: Bool
     let remoteCommandsEnabled: Bool
     let predictedGlucoseChartClampEnabled: Bool
     let scenariosEnabled: Bool
@@ -155,6 +157,15 @@ struct FeatureFlagConfiguration: Decodable {
         self.observeHealthKitGlucoseSamplesFromOtherApps = false
         #endif
         
+        #if OBSERVE_HEALTH_KIT_FOR_EXERCISE_ENABLED
+        self.observeHealthKitStepCount = true
+        self.observeHealthKitActiveEnergy = true
+        #else
+        self.observeHealthKitStepCount = false
+        self.observeHealthKitActiveEnergy = false
+        #endif
+
+        
         #if PREDICTED_GLUCOSE_CHART_CLAMP_ENABLED
         self.predictedGlucoseChartClampEnabled = true
         #else
@@ -251,6 +262,8 @@ extension FeatureFlagConfiguration : CustomDebugStringConvertible {
             "* observeHealthKitCarbSamplesFromOtherApps: \(observeHealthKitCarbSamplesFromOtherApps)",
             "* observeHealthKitDoseSamplesFromOtherApps: \(observeHealthKitDoseSamplesFromOtherApps)",
             "* observeHealthKitGlucoseSamplesFromOtherApps: \(observeHealthKitGlucoseSamplesFromOtherApps)",
+            "* observeHealthKitStepCount: \(observeHealthKitStepCount)",
+            "* observeHealthKitActiveEnergy: \(observeHealthKitActiveEnergy)",
             "* predictedGlucoseChartClampEnabled: \(predictedGlucoseChartClampEnabled)",
             "* remoteCommandsEnabled: \(remoteCommandsEnabled)",
             "* scenariosEnabled: \(scenariosEnabled)",
