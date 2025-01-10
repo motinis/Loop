@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1207C07B2D2EFF680092AB2E /* SuperMicroBolusSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1207C07A2D2EFF5C0092AB2E /* SuperMicroBolusSelectionView.swift */; };
 		12F04F012D19791B002B2121 /* AutoBolusCarbsSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12F04F002D197907002B2121 /* AutoBolusCarbsSelectionView.swift */; };
 		1419606428D9550400BA86E0 /* LoopKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 437AFEE6203688CF008C4892 /* LoopKitUI.framework */; };
 		1419606928D9554E00BA86E0 /* LoopKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 437AFEE6203688CF008C4892 /* LoopKitUI.framework */; };
@@ -744,6 +745,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1207C07A2D2EFF5C0092AB2E /* SuperMicroBolusSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperMicroBolusSelectionView.swift; sourceTree = "<group>"; };
 		12F04F002D197907002B2121 /* AutoBolusCarbsSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoBolusCarbsSelectionView.swift; sourceTree = "<group>"; };
 		142CB7582A60BF2E0075748A /* EditMode.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EditMode.swift; sourceTree = "<group>"; };
 		142CB75A2A60BFC30075748A /* FavoriteFoodsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FavoriteFoodsView.swift; sourceTree = "<group>"; };
@@ -2246,7 +2248,6 @@
 		43F5C2CF1B92A2ED003EB13D /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				12F04F002D197907002B2121 /* AutoBolusCarbsSelectionView.swift */,
 				1452F4AA2A851EDF00F8B9E4 /* AddEditFavoriteFoodView.swift */,
 				B4001CED28CBBC82002FB414 /* AlertManagementView.swift */,
 				897A5A9524C2175B00C4E71D /* BolusEntryView.swift */,
@@ -2279,6 +2280,8 @@
 				C1AF062229426300002C1B19 /* ManualGlucoseEntryRow.swift */,
 				DDC389FD2A2C4C830066E2E8 /* GlucoseBasedApplicationFactorSelectionView.swift */,
 				DD3DBD282A33AFE9000F8B5B /* IntegralRetrospectiveCorrectionSelectionView.swift */,
+				12F04F002D197907002B2121 /* AutoBolusCarbsSelectionView.swift */,
+				1207C07A2D2EFF5C0092AB2E /* SuperMicroBolusSelectionView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -3756,6 +3759,7 @@
 				897A5A9924C22DE800C4E71D /* BolusEntryViewModel.swift in Sources */,
 				4374B5EF209D84BF00D17AA8 /* OSLog.swift in Sources */,
 				1DB619AC270BAD3D006C9D07 /* VersionUpdateViewModel.swift in Sources */,
+				1207C07B2D2EFF680092AB2E /* SuperMicroBolusSelectionView.swift in Sources */,
 				A9C62D882331703100535612 /* Service.swift in Sources */,
 				89CAB36324C8FE96009EE3CE /* PredictedGlucoseChartView.swift in Sources */,
 				DDC389F82A2B620B0066E2E8 /* GlucoseBasedApplicationFactorStrategy.swift in Sources */,

@@ -41,11 +41,12 @@ public struct ExperimentRow: View {
 public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.GlucoseBasedApplicationFactorEnabled.rawValue) private var isGlucoseBasedApplicationFactorEnabled = false
     @AppStorage(UserDefaults.Key.IntegralRetrospectiveCorrectionEnabled.rawValue) private var isIntegralRetrospectiveCorrectionEnabled = false
-    @AppStorage(UserDefaults.Key.AutoBolusCarbsEnabled.rawValue) private var isAutoBolusCarbsAvailable = false
+    @AppStorage(UserDefaults.Key.AutoBolusCarbsEnabled.rawValue) private var isAutoBolusCarbsEnabled = false
     @AppStorage(UserDefaults.Key.AutoBolusCarbsActiveByDefault.rawValue) private var autoBolusCarbsActiveByDefault = false
-    
+    @AppStorage(UserDefaults.Key.SuperMicroBolusEnabled.rawValue) private var isSuperMicroBolusEnabled = false
+        
     var automaticDosingStrategy: AutomaticDosingStrategy
-
+    
     public var body: some View {
         ScrollView {
             VStack(alignment: .center, spacing: 12) {
@@ -73,19 +74,42 @@ public struct ExperimentsSettingsView: View {
                         name: NSLocalizedString("Integral Retrospective Correction", comment: "Title of integral retrospective correction experiment"),
                         enabled: isIntegralRetrospectiveCorrectionEnabled)
                 }
-                NavigationLink(destination: AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: $isAutoBolusCarbsAvailable, autoBolusCarbsActiveByDefault: $autoBolusCarbsActiveByDefault)) {
+                NavigationLink(destination: AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: $isAutoBolusCarbsEnabled, autoBolusCarbsActiveByDefault: $autoBolusCarbsActiveByDefault)) {
                     ExperimentRow(
                         name: NSLocalizedString("Auto-Bolus Carbs", comment: "Title of auto-bolus carbs experiment"),
-                        enabled: isAutoBolusCarbsAvailable)
+                        enabled: isAutoBolusCarbsEnabled)
+                }
+                NavigationLink(destination: SuperMicroBolusSelectionView(isSuperMicroBolusSelectionEnabled: $isSuperMicroBolusEnabled)) {
+                    ExperimentRow(
+                        name: NSLocalizedString("Super Micro Bolus", comment: "Title of super micro bolus experiment"),
+                        enabled: isSuperMicroBolusEnabled)
                 }
                 Spacer()
             }
             .padding()
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: isGlucoseBasedApplicationFactorEnabled) { _ in
+            NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
+        }
+        .onChange(of: isIntegralRetrospectiveCorrectionEnabled) { _ in
+            NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
+        }
+        .onChange(of: isAutoBolusCarbsEnabled) { _ in
+            NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
+        }
+        .onChange(of: autoBolusCarbsActiveByDefault) { _ in
+            NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
+        }
+        .onChange(of: isSuperMicroBolusEnabled) { _ in
+            NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
+        }
     }
 }
 
+extension Notification.Name {
+    static let AlgorithmExperimentsChanged = Notification.Name(rawValue:  "com.loopKit.notification.AlgorithmExperimentsChanged")
+}
 
 extension UserDefaults {
     fileprivate enum Key: String {
@@ -93,6 +117,7 @@ extension UserDefaults {
         case IntegralRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.integralRetrospectiveCorrectionEnabled"
         case AutoBolusCarbsEnabled = "com.loopkit.algorithmExperiments.autoBolusCarbsEnabled"
         case AutoBolusCarbsActiveByDefault = "com.loopkit.algorithmExperiments.autoBolusCarbsActiveByDefault"
+        case SuperMicroBolusEnabled = "com.loopkit.algorithmExperiments.superMicroBolusEnabled"
     }
 
     var glucoseBasedApplicationFactorEnabled: Bool {
@@ -128,6 +153,15 @@ extension UserDefaults {
         }
         set {
             set(newValue, forKey: Key.AutoBolusCarbsActiveByDefault.rawValue)
+        }
+    }
+    
+    var superMicroBolusEnabled: Bool {
+        get {
+            bool(forKey: Key.SuperMicroBolusEnabled.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.SuperMicroBolusEnabled.rawValue)
         }
     }
 }

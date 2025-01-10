@@ -432,6 +432,9 @@ final class LoopDataManager {
 
         return override.settings.autoBolusCarbsActive ?? UserDefaults.standard.autoBolusCarbsActiveByDefault
     }
+    
+    var smbActive = false
+    fileprivate var smbEndDate: Date = .distantPast
 
     fileprivate var lastLoopError: LoopError?
 
@@ -2051,6 +2054,7 @@ extension LoopDataManager {
             var dosingRecommendation: AutomaticDoseRecommendation?
 
             var autoBolusCarbsAmount = -Double.infinity
+            let smbEnabled = UserDefaults.standard.superMicroBolusEnabled
             
             // automaticDosingIOBLimit calculated from the user entered maxBolus
             let automaticDosingIOBLimit = maxBolus! * 2.0
@@ -2073,44 +2077,72 @@ extension LoopDataManager {
                 }
             }
             
+            let check5MinuteDosageForTempBasal = autoBolusCarbsAmount > 0 || smbEnabled
+            
             let bolusApplicationFactor: Double?
             let volumeRounder: ((Double) -> Double)?
+            var recalcTempBasal = false
 
-            if autoBolusCarbsAmount > 0 {
+            if check5MinuteDosageForTempBasal {
                 switch settings.automaticDosingStrategy {
                 case .automaticBolus:
                     bolusApplicationFactor = nil
                     volumeRounder = nil
                 case .tempBasalOnly:
                     // instead of temp basal, compare with automaticBolus with an adjusted bolusApplicationFactor reflecting 5 minutes of temp basal
-                    // we avoid rounding this value so we can accurately know whether the temp basal would give more or less insulin over 5 minutes
+                    // we avoid rounding this value so we can accurately know whether the temp basal would give more or less insulin over 5 minutes when using autoBolusCarbs
                     bolusApplicationFactor = 5.0/30.0
                     volumeRounder = {$0}
+                    recalcTempBasal = true
                 }
             } else {
                 bolusApplicationFactor = nil
                 volumeRounder = nil
             }
                 
-            let dosingStrategty = autoBolusCarbsAmount > 0 ? .automaticBolus : settings.automaticDosingStrategy
+            let dosingStrategy = check5MinuteDosageForTempBasal ? .automaticBolus : settings.automaticDosingStrategy
                         
-            dosingRecommendation = getDosingRecommendation(dosingStrategy: dosingStrategty, glucose: glucose, predictedGlucose: predictedGlucose, iobHeadroom: iobHeadroom, glucoseTargetRange: glucoseTargetRange, insulinSensitivity: insulinSensitivity, basalRateSchedule: basalRateSchedule, startDate: startDate, bolusApplicationFactor: bolusApplicationFactor, volumeRounder: volumeRounder)
+            dosingRecommendation = getDosingRecommendation(dosingStrategy: dosingStrategy, glucose: glucose, predictedGlucose: predictedGlucose, iobHeadroom: iobHeadroom, glucoseTargetRange: glucoseTargetRange, insulinSensitivity: insulinSensitivity, basalRateSchedule: basalRateSchedule, startDate: startDate, bolusApplicationFactor: bolusApplicationFactor, volumeRounder: volumeRounder)
+            
+            var nextSmbActive = false
             
             if autoBolusCarbsAmount > dosingRecommendation?.bolusUnits ?? 0.0 {
                 logger.info("Recommendation is to auto-bolus carbs as it will give more insulin")
                 dosingRecommendation = AutomaticDoseRecommendation(basalAdjustment: dosingRecommendation?.basalAdjustment, bolusUnits: autoBolusCarbsAmount)
-            } else {
-                switch settings.automaticDosingStrategy {
-                case .tempBasalOnly:
-                    if autoBolusCarbsAmount > 0 {
-                        // we used automaticBolus before so now we need to switch over to the standard tempBasal recommendation
-                        dosingRecommendation = getDosingRecommendation(dosingStrategy: .tempBasalOnly, glucose: glucose, predictedGlucose: predictedGlucose, iobHeadroom: iobHeadroom, glucoseTargetRange: glucoseTargetRange, insulinSensitivity: insulinSensitivity, basalRateSchedule: basalRateSchedule, startDate: startDate)
+                recalcTempBasal = false
+            } else if smbEnabled, 0.0 == self.volumeRounder()(dosingRecommendation?.bolusUnits ?? 0.0) {
+                let prediction = smbActive ? predictedGlucoseIncludingPendingInsulin : predictedGlucose
+                let insulinModel = doseStore.insulinModelProvider.model(for: pumpInsulinType)
+                if prediction.isEligibleForSuperMicroBolus(to: glucoseTargetRange!, suspendThreshold: settings.suspendThreshold?.quantity, sensitivity: insulinSensitivity!, model: insulinModel) {
+                  
+                    let lastTempBasal: DoseEntry?
+                    if case .some(.tempBasal(let dose)) = basalDeliveryState {
+                        lastTempBasal = dose
+                    } else {
+                        lastTempBasal = nil
                     }
-                default:
-                    break
+                    
+                    let suspendPrediction = try predictGlucose(using: settings.enabledEffects.union([.suspend]))
+                    let smbDosingRecommendation = suspendPrediction.recommendedSuperMicroBolusDose(to: glucoseTargetRange!, sensitivity: insulinSensitivity!, model: insulinModel, basalRates: basalRateSchedule!, maxAutomaticBolus: maxBolus!, partialApplicationFactor: 0.15, lastTempBasal: lastTempBasal, volumeRounder: self.volumeRounder())
+                    
+                    // once smbEndDate passes without any new smbDosingRecommendations smbActive will be set to false
+                    nextSmbActive = smbActive && startDate.addingTimeInterval(.minutes(1)) < smbEndDate
+                    if smbDosingRecommendation != nil || nextSmbActive {
+                        recalcTempBasal = false
+                        nextSmbActive = true
+                        dosingRecommendation = smbDosingRecommendation
+                        if smbDosingRecommendation != nil, let duration = smbDosingRecommendation?.basalAdjustment?.duration {
+                            smbEndDate = startDate.addingTimeInterval(duration)
+                        }
+                    }
                 }
             }
-          
+            
+            if recalcTempBasal {
+                // we used automaticBolus before so now we need to switch over to the standard tempBasal recommendation
+                nextSmbActive = false
+                dosingRecommendation = getDosingRecommendation(dosingStrategy: .tempBasalOnly, glucose: glucose, predictedGlucose: predictedGlucose, iobHeadroom: iobHeadroom, glucoseTargetRange: glucoseTargetRange, insulinSensitivity: insulinSensitivity, basalRateSchedule: basalRateSchedule, startDate: startDate)
+            }
             
             if let dosingRecommendation = dosingRecommendation {
                 self.logger.default("Recommending dose: %{public}@ at %{public}@", String(describing: dosingRecommendation), String(describing: startDate))
@@ -2120,6 +2152,7 @@ extension LoopDataManager {
                 recommendedAutomaticDose = nil
             }
             dosingDecision.automaticDoseRecommendation = recommendedAutomaticDose?.recommendation
+            smbActive = nextSmbActive
         } catch let error {
             loopError = error as? LoopError ?? .unknownError(error)
             if let loopError = loopError {
