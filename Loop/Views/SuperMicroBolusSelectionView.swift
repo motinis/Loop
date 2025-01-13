@@ -23,8 +23,8 @@ public struct SuperMicroBolusSelectionView: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(String(format: NSLocalizedString("Super Micro Bolus (SMB) is a modification of how Loop corrects each cycle, where future basal is \"borrowed\" to be given as a small bolus to get in range faster. A zero temp basal is maintained while SMB is active for 30 - 60 minutes for safety. While SMB is active %@ will appear beside Glucose on the status screen. Eventual glucose may be above range due to the long zero temp basal.", comment: "Description of Super Micro Bolus toggle."), "🔷"))
-                    Text(NSLocalizedString("SMB can be given when:", comment: "SMB eligibility conditions list"))
+                    Text(String(format: NSLocalizedString("Super Micro Bolus (SMB) is a modification of how Loop corrects each cycle. If Loop would not give a correction, then it may \"borrow\" future basal to give it as a bolus to get in range faster. A zero temp basal is maintained while SMB is active for 30 - 60 minutes for safety. While SMB is active %@ will appear beside Glucose on the status screen. Eventual glucose may be above range due to the long zero temp basal.", comment: "Description of Super Micro Bolus toggle."), "🔷"))
+                    Text(NSLocalizedString("SMB can be given when all of the following conditions are met:", comment: "SMB eligibility conditions list"))
                     HStack(alignment: .top) {
                         Text("•")
                         Text(NSLocalizedString("Loop would not give any automatic dosing for the predicted glucose", comment: "SMB condition 1"))

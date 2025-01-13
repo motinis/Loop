@@ -1477,13 +1477,13 @@ extension LoopDataManager {
                 
         let shouldIncludePendingInsulin = pendingInsulin > 0
         
-        let carbAndInsulinPrediction = try predictGlucose(using: [.carbs, .insulin], potentialBolus: nil, potentialCarbEntry: potentialCarbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: shouldIncludePendingInsulin, includingPositiveVelocityAndRC: false)
+        let carbAndInsulinPrediction = try predictGlucose(using: [.carbs, .insulin], potentialCarbEntry: potentialCarbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: shouldIncludePendingInsulin, includingPositiveVelocityAndRC: false)
         
         guard !carbAndInsulinPrediction.isEmpty else {
             return nil
         }
         
-        let carbOnlyPrediction = try predictGlucose(using: [.carbs], potentialBolus: nil, potentialCarbEntry: potentialCarbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: shouldIncludePendingInsulin, includingPositiveVelocityAndRC: false)
+        let carbOnlyPrediction = try predictGlucose(using: [.carbs], potentialCarbEntry: potentialCarbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: shouldIncludePendingInsulin, includingPositiveVelocityAndRC: false)
         
         guard !carbOnlyPrediction.isEmpty else {
             return nil
@@ -1508,7 +1508,7 @@ extension LoopDataManager {
         }
         
         let shouldIncludePendingInsulin = pendingInsulin > 0
-        let prediction = try predictGlucose(using: .all, potentialBolus: nil, potentialCarbEntry: potentialCarbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: shouldIncludePendingInsulin, includingPositiveVelocityAndRC: considerPositiveVelocityAndRC)
+        let prediction = try predictGlucose(using: .all, potentialCarbEntry: potentialCarbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: shouldIncludePendingInsulin, includingPositiveVelocityAndRC: considerPositiveVelocityAndRC)
         let recommendation = try recommendBolusValidatingDataRecency(forPrediction: prediction, consideringPotentialCarbEntry: potentialCarbEntry)
         
         guard recommendation != nil else {
@@ -1539,7 +1539,7 @@ extension LoopDataManager {
             // the insulin needed to cover the zeroCarbEntry will underflow to 0 once added/subtracted
             let zeroCarbEntry = replacedCarbEntry == nil ? nil : NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 1E-50), startDate: potentialCarbEntry!.startDate, foodType: nil, absorptionTime: potentialCarbEntry!.absorptionTime)
             
-            let predictionWithZeroCarbEntry = try predictGlucose(using: .all, potentialBolus: nil, potentialCarbEntry: zeroCarbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: shouldIncludePendingInsulin, includingPositiveVelocityAndRC: considerPositiveVelocityAndRC)
+            let predictionWithZeroCarbEntry = try predictGlucose(using: .all, potentialCarbEntry: zeroCarbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: shouldIncludePendingInsulin, includingPositiveVelocityAndRC: considerPositiveVelocityAndRC)
             
             guard let carbBreakdownRecommendationWithZeroCarbEntry = try recommendBolusValidatingDataRecency(forPrediction: predictionWithZeroCarbEntry, consideringPotentialCarbEntry: zeroCarbEntry, usage: .carbBreakdown) else {
             
@@ -2111,7 +2111,8 @@ extension LoopDataManager {
                 dosingRecommendation = AutomaticDoseRecommendation(basalAdjustment: dosingRecommendation?.basalAdjustment, bolusUnits: autoBolusCarbsAmount)
                 recalcTempBasal = false
             } else if smbEnabled, 0.0 == self.volumeRounder()(dosingRecommendation?.bolusUnits ?? 0.0) {
-                let prediction = smbActive ? predictedGlucoseIncludingPendingInsulin : predictedGlucose
+                let prediction = smbActive ? predictedGlucoseIncludingPendingInsulin : try predictGlucose(using: settings.enabledEffects, potentialBolus: DoseEntry(type: .tempBasal, startDate: startDate, endDate: startDate.addingTimeInterval(.minutes(30)), value: 0.0, unit: .unitsPerHour))
+                
                 let insulinModel = doseStore.insulinModelProvider.model(for: pumpInsulinType)
                 if prediction.isEligibleForSuperMicroBolus(to: glucoseTargetRange!, suspendThreshold: settings.suspendThreshold?.quantity, sensitivity: insulinSensitivity!, model: insulinModel) {
                   
@@ -2122,16 +2123,17 @@ extension LoopDataManager {
                         lastTempBasal = nil
                     }
                     
+                    let maxAutoBolus = min(maxBolus!, iobHeadroom)
+                    
                     let suspendPrediction = try predictGlucose(using: settings.enabledEffects.union([.suspend]))
-                    let smbDosingRecommendation = suspendPrediction.recommendedSuperMicroBolusDose(to: glucoseTargetRange!, sensitivity: insulinSensitivity!, model: insulinModel, basalRates: basalRateSchedule!, maxAutomaticBolus: maxBolus!, partialApplicationFactor: 0.15, lastTempBasal: lastTempBasal, volumeRounder: self.volumeRounder())
+                    let smbDosingRecommendation = suspendPrediction.recommendedSuperMicroBolusDose(to: glucoseTargetRange!, sensitivity: insulinSensitivity!, model: insulinModel, basalRates: basalRateSchedule!, maxAutomaticBolus: maxAutoBolus, partialApplicationFactor: 0.15, lastTempBasal: lastTempBasal, volumeRounder: self.volumeRounder())
                     
                     // once smbEndDate passes without any new smbDosingRecommendations smbActive will be set to false
-                    nextSmbActive = smbActive && startDate.addingTimeInterval(.minutes(1)) < smbEndDate
-                    if smbDosingRecommendation != nil || nextSmbActive {
+                    if smbDosingRecommendation != nil || (smbActive && startDate.addingTimeInterval(.minutes(1)) < smbEndDate) {
                         recalcTempBasal = false
                         nextSmbActive = true
                         dosingRecommendation = smbDosingRecommendation
-                        if smbDosingRecommendation != nil, let duration = smbDosingRecommendation?.basalAdjustment?.duration {
+                        if let duration = smbDosingRecommendation?.basalAdjustment?.duration {
                             smbEndDate = startDate.addingTimeInterval(duration)
                         }
                     }
