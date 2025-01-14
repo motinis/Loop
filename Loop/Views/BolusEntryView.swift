@@ -311,9 +311,7 @@ struct BolusEntryView: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             viewModel.cobCorrectionBolusIncluded.toggle()
-                            viewModel.userChangedCobCorrectionBolusIncluded = true
                         }
-
                     }
                     if viewModel.bgCorrectionBolus != nil {
                         HStack {
@@ -336,7 +334,6 @@ struct BolusEntryView: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             viewModel.bgCorrectionBolusIncluded.toggle()
-                            viewModel.userChangedBgCorrectionBolusIncluded = true
                         }
                     }
                     if viewModel.maxExcessBolus != nil {
@@ -383,6 +380,29 @@ struct BolusEntryView: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             viewModel.safetyLimitBolusIncluded.toggle()
+                        }
+                    }
+                    if viewModel.correctionLimitBolus != nil {
+                        HStack {
+                            Text("  ")
+                            Image(systemName: "checkmark")
+                                .imageScale(.small)
+                                .foregroundColor(.accentColor)
+                                .opacity(viewModel.correctionLimitBolusIncluded ? 1 : 0)
+                            Text("Correction Limit", comment: "Label for correction limit row on bolus screen")
+                                .font(breakdownFont)
+                            Spacer()
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(viewModel.negativeCorrectLimitString)
+                                    .font(breakdownFont)
+                                    .foregroundColor(Color(.label))
+                                breakdownBolusUnitsLabel
+                            }
+                        }
+                        .accessibilityElement(children: .combine)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            viewModel.correctionLimitBolusIncluded.toggle()
                         }
                     }
                 }

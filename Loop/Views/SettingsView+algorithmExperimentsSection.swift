@@ -21,15 +21,17 @@ extension SettingsView {
 
 public struct ExperimentRow: View {
     var name: String
-    var enabled: Bool
+    var enabled: Bool?
 
     public var body: some View {
         HStack {
             Text(name)
                 .foregroundColor(.primary)
             Spacer()
-            Text(enabled ? "On" : "Off")
-                .foregroundColor(enabled ? .red : .secondary)
+            if let enabled = enabled {
+                Text(enabled ? "On" : "Off")
+                    .foregroundColor(enabled ? .red : .secondary)
+            }
         }
         .padding()
         .background(Color(UIColor.secondarySystemBackground))
