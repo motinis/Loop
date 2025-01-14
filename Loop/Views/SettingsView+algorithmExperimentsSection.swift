@@ -42,6 +42,8 @@ public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.GlucoseBasedApplicationFactorEnabled.rawValue) private var isGlucoseBasedApplicationFactorEnabled = false
     @AppStorage(UserDefaults.Key.IntegralRetrospectiveCorrectionEnabled.rawValue) private var isIntegralRetrospectiveCorrectionEnabled = false
     @AppStorage(UserDefaults.Key.NegativeInsulinDamperEnabled.rawValue) private var isNegativeInsulinDamperEnabled = false
+    @AppStorage(UserDefaults.Key.AutoBolusCarbsEnabled.rawValue) private var isAutoBolusCarbsEnabled = false
+    @AppStorage(UserDefaults.Key.AutoBolusCarbsActiveByDefault.rawValue) private var autoBolusCarbsActiveByDefault = false
 
     var automaticDosingStrategy: AutomaticDosingStrategy
 
@@ -77,6 +79,11 @@ public struct ExperimentsSettingsView: View {
                         name: NSLocalizedString("Negative Insulin Damper", comment: "Title of negative insulin damper experiment"),
                         enabled: isNegativeInsulinDamperEnabled)
                 }
+                NavigationLink(destination: AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: $isAutoBolusCarbsEnabled, autoBolusCarbsActiveByDefault: $autoBolusCarbsActiveByDefault)) {
+                    ExperimentRow(
+                        name: NSLocalizedString("Auto-Bolus Carbs", comment: "Title of auto-bolus carbs experiment"),
+                        enabled: isAutoBolusCarbsEnabled)
+                }
                 Spacer()
             }
             .padding()
@@ -91,6 +98,8 @@ extension UserDefaults {
         case GlucoseBasedApplicationFactorEnabled = "com.loopkit.algorithmExperiments.glucoseBasedApplicationFactorEnabled"
         case IntegralRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.integralRetrospectiveCorrectionEnabled"
         case NegativeInsulinDamperEnabled = "com.loopkit.algorithmExperiments.negativeInsulinDamperEnabled"
+        case AutoBolusCarbsEnabled = "com.loopkit.algorithmExperiments.autoBolusCarbsEnabled"
+        case AutoBolusCarbsActiveByDefault = "com.loopkit.algorithmExperiments.autoBolusCarbsActiveByDefault"
     }
 
     var glucoseBasedApplicationFactorEnabled: Bool {
@@ -110,13 +119,31 @@ extension UserDefaults {
             set(newValue, forKey: Key.IntegralRetrospectiveCorrectionEnabled.rawValue)
         }
     }
-
+    
     var negativeInsulinDamperEnabled: Bool {
         get {
             bool(forKey: Key.NegativeInsulinDamperEnabled.rawValue) as Bool
         }
         set {
             set(newValue, forKey: Key.NegativeInsulinDamperEnabled.rawValue)
+        }
+    }
+            
+    var autoBolusCarbsEnabled: Bool {
+        get {
+            bool(forKey: Key.AutoBolusCarbsEnabled.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.AutoBolusCarbsEnabled.rawValue)
+        }
+    }
+
+    var autoBolusCarbsActiveByDefault: Bool {
+        get {
+            bool(forKey: Key.AutoBolusCarbsActiveByDefault.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.AutoBolusCarbsActiveByDefault.rawValue)
         }
     }
 }
