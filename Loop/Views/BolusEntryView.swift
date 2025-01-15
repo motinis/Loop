@@ -240,7 +240,9 @@ struct BolusEntryView: View {
         
     @ViewBuilder
     private var recommendedBolusRow: some View {
+        let exclusionsApply = viewModel.exclusionsBolus != nil && viewModel.exclusionsBolusIncluded
         let breakdownFont = Font.subheadline
+        
         Section {
             HStack(alignment: .firstTextBaseline) {
                 Text("Recommended Bolus", comment: "Label for recommended bolus row on bolus screen")
@@ -276,6 +278,7 @@ struct BolusEntryView: View {
                                 .opacity(viewModel.carbBolusIncluded ? 1 : 0)
                             Text("Carb Entry", comment: "Label for carb bolus row on bolus screen")
                                 .font(breakdownFont)
+                                .strikethrough(exclusionsApply && UserDefaults.standard.carbBolusCarbEntryExcluded && viewModel.carbBolusAmount ?? 0.0 > 0)
                             Spacer()
                             HStack(alignment: .firstTextBaseline) {
                                 Text(viewModel.carbBolusString)
@@ -299,6 +302,7 @@ struct BolusEntryView: View {
                                 .opacity(viewModel.cobCorrectionBolusIncluded ? 1 : 0)
                             Text("COB Correction", comment: "Label for COB correction bolus row on bolus screen")
                                 .font(breakdownFont)
+                                .strikethrough(exclusionsApply && UserDefaults.standard.carbBolusCobCorrectionExcluded && viewModel.cobCorrectionBolusAmount ?? 0.0 > 0)
                             Spacer()
                             HStack(alignment: .firstTextBaseline) {
                                 Text(viewModel.cobCorrectionBolusString)
@@ -322,6 +326,7 @@ struct BolusEntryView: View {
                                 .opacity(viewModel.bgCorrectionBolusIncluded ? 1 : 0)
                             Text("BG Correction", comment: "Label for BG correction bolus row on bolus screen")
                                 .font(breakdownFont)
+                                .strikethrough(exclusionsApply && UserDefaults.standard.carbBolusBgCorrectionExcluded && viewModel.bgCorrectionBolusAmount ?? 0.0 > 0)
                             Spacer()
                             HStack(alignment: .firstTextBaseline) {
                                 Text(viewModel.bgCorrectionBolusString)
@@ -382,14 +387,14 @@ struct BolusEntryView: View {
                             viewModel.safetyLimitBolusIncluded.toggle()
                         }
                     }
-                    if viewModel.correctionLimitBolus != nil {
+                    if viewModel.exclusionsBolus != nil {
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
                                 .imageScale(.small)
                                 .foregroundColor(.accentColor)
-                                .opacity(viewModel.correctionLimitBolusIncluded ? 1 : 0)
-                            Text("Correction Limit", comment: "Label for correction limit row on bolus screen")
+                                .opacity(viewModel.exclusionsBolusIncluded ? 1 : 0)
+                            Text("Exclusions", comment: "Label for exclusions row on bolus screen")
                                 .font(breakdownFont)
                             Spacer()
                             HStack(alignment: .firstTextBaseline) {
@@ -402,7 +407,7 @@ struct BolusEntryView: View {
                         .accessibilityElement(children: .combine)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            viewModel.correctionLimitBolusIncluded.toggle()
+                            viewModel.exclusionsBolusIncluded.toggle()
                         }
                     }
                 }

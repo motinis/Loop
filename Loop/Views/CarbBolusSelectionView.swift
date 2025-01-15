@@ -13,6 +13,7 @@ import LoopKit
 import LoopKitUI
 
 public struct CarbBolusSelectionView: View {
+    @AppStorage(UserDefaults.Key.CarbEntryExcluded.rawValue) var isCarbEntryExcluded = false
     @AppStorage(UserDefaults.Key.CobCorrectionExcluded.rawValue) var isCobCorrectionExcluded = false
     @AppStorage(UserDefaults.Key.BgCorrectionExcluded.rawValue) var isBgCorrectionExcluded = false
     
@@ -26,11 +27,14 @@ public struct CarbBolusSelectionView: View {
 
                 Divider()
 
-                Text(NSLocalizedString("When bolusing for carbs one can decide whether to correct or not. The toggles below enable one to not give COB or BG corrections. When these are relevant an extra Correction Limit row will appear in the Recommendation Breakdown reducing the overall bolus. Note that this amount may be less than the COB or BG corrections, as negative insulin from other rows already applies.", comment: "carb bolus recommendaiton options description"))
+                Text(NSLocalizedString("When bolusing for carbs one can decide which elements to exclude. The toggles below enable one to not bolus for the Carb Entry, or to not give COB or BG corrections. When these are relevant an extra Exclusions row will appear in the Recommendation Breakdown reducing the overall bolus. Rows cancelled out by the Exclusions row are displayed with strikethrough. The excluded amount may be smaller than expected, as negative insulin from other rows can still apply.", comment: "carb bolus recommendation options description"))
                     .foregroundColor(.secondary)
                 Divider()
 
-                Toggle(NSLocalizedString("COB Correction Excluded", comment: "Title for Correction Excluded toggle"), isOn: $isCobCorrectionExcluded)
+                Toggle(NSLocalizedString("Carb Entry Excluded", comment: "Title for Carb Entry Excluded toggle"), isOn: $isCarbEntryExcluded)
+                    .padding(.top, 20)
+
+                Toggle(NSLocalizedString("COB Correction Excluded", comment: "Title for COB Correction Excluded toggle"), isOn: $isCobCorrectionExcluded)
                     .padding(.top, 20)
                 
                 Toggle(NSLocalizedString("BG Correction Excluded", comment: "Title for BG Correction Excluded toggle"), isOn: $isBgCorrectionExcluded)
@@ -45,8 +49,18 @@ public struct CarbBolusSelectionView: View {
 
 extension UserDefaults {
     fileprivate enum Key: String {
+        case CarbEntryExcluded = "com.loopkit.underDevelopment.carbBolus.carbyEntryExcluded"
         case CobCorrectionExcluded = "com.loopkit.underDevelopment.carbBolus.correctionExcluded"
         case BgCorrectionExcluded = "com.loopkit.underDevelopment.carbBolus.bgCorrectionExcluded"
+    }
+    
+    var carbBolusCarbEntryExcluded : Bool {
+        get {
+            bool(forKey: Key.CarbEntryExcluded.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.CarbEntryExcluded.rawValue)
+        }
     }
     
     var carbBolusCobCorrectionExcluded : Bool {
