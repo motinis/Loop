@@ -270,6 +270,7 @@ struct BolusEntryView: View {
             if recommendationBreakdownExpanded {
                 VStack {
                     if viewModel.potentialCarbEntry != nil, viewModel.carbBolus != nil {
+                        let excluded = exclusionsApply && UserDefaults.standard.carbBolusCarbEntryExcluded
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
@@ -278,12 +279,12 @@ struct BolusEntryView: View {
                                 .opacity(viewModel.carbBolusIncluded ? 1 : 0)
                             Text("Carb Entry", comment: "Label for carb bolus row on bolus screen")
                                 .font(breakdownFont)
-                                .strikethrough(exclusionsApply && UserDefaults.standard.carbBolusCarbEntryExcluded && viewModel.carbBolusAmount ?? 0.0 > 0)
+                                .foregroundStyle(excluded ? .secondary : .primary)
                             Spacer()
                             HStack(alignment: .firstTextBaseline) {
                                 Text(viewModel.carbBolusString)
                                     .font(.subheadline)
-                                    .foregroundColor(Color(.label))
+                                    .foregroundColor(Color(excluded ? .secondaryLabel : .label))
                                 breakdownBolusUnitsLabel
                             }
                         }
@@ -294,6 +295,7 @@ struct BolusEntryView: View {
                         }
                     }
                     if viewModel.cobCorrectionBolus != nil {
+                        let excluded = exclusionsApply && UserDefaults.standard.carbBolusCobCorrectionExcluded
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
@@ -302,12 +304,12 @@ struct BolusEntryView: View {
                                 .opacity(viewModel.cobCorrectionBolusIncluded ? 1 : 0)
                             Text("COB Correction", comment: "Label for COB correction bolus row on bolus screen")
                                 .font(breakdownFont)
-                                .strikethrough(exclusionsApply && UserDefaults.standard.carbBolusCobCorrectionExcluded && viewModel.cobCorrectionBolusAmount ?? 0.0 > 0)
+                                .foregroundStyle(excluded ? .secondary : .primary)
                             Spacer()
                             HStack(alignment: .firstTextBaseline) {
                                 Text(viewModel.cobCorrectionBolusString)
                                     .font(breakdownFont)
-                                    .foregroundColor(Color(.label))
+                                    .foregroundColor(Color(excluded ? .secondaryLabel : .label))
                                 breakdownBolusUnitsLabel
                             }
                         }
@@ -318,6 +320,7 @@ struct BolusEntryView: View {
                         }
                     }
                     if viewModel.bgCorrectionBolus != nil {
+                        let excluded = exclusionsApply && UserDefaults.standard.carbBolusBgCorrectionExcluded
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
@@ -326,12 +329,12 @@ struct BolusEntryView: View {
                                 .opacity(viewModel.bgCorrectionBolusIncluded ? 1 : 0)
                             Text("BG Correction", comment: "Label for BG correction bolus row on bolus screen")
                                 .font(breakdownFont)
-                                .strikethrough(exclusionsApply && UserDefaults.standard.carbBolusBgCorrectionExcluded && viewModel.bgCorrectionBolusAmount ?? 0.0 > 0)
+                                .foregroundStyle(excluded ? .secondary : .primary)
                             Spacer()
                             HStack(alignment: .firstTextBaseline) {
                                 Text(viewModel.bgCorrectionBolusString)
                                     .font(breakdownFont)
-                                    .foregroundColor(Color(.label))
+                                    .foregroundColor(Color(excluded ? .secondaryLabel : .label))
                                 breakdownBolusUnitsLabel
                             }
                         }

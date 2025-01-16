@@ -27,7 +27,7 @@ public struct CarbBolusSelectionView: View {
 
                 Divider()
 
-                Text(NSLocalizedString("When bolusing for carbs one can decide which elements to exclude. The toggles below enable one to not bolus for the Carb Entry, or to not give COB or BG corrections. When these are relevant an extra Exclusions row will appear in the Recommendation Breakdown reducing the overall bolus. Rows cancelled out by the Exclusions row are displayed with strikethrough. The excluded amount may be smaller than expected, as negative insulin from other rows can still apply.", comment: "carb bolus recommendation options description"))
+                Text(NSLocalizedString("When bolusing for carbs one can decide which elements to exclude. The toggles below enable one to not bolus for the Carb Entry, or to not give COB or BG corrections. When these are relevant an extra Exclusions row will appear in the Recommendation Breakdown reducing the overall bolus. Rows included in the Exclusions calculated are grayed out. The excluded amount may be smaller than expected, as negative insulin from other rows can still apply.", comment: "carb bolus recommendation options description"))
                     .foregroundColor(.secondary)
                 Divider()
 
