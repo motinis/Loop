@@ -83,6 +83,7 @@ extension UserDefaults {
     fileprivate enum Key: String {
         case GlucoseBasedApplicationFactorEnabled = "com.loopkit.algorithmExperiments.glucoseBasedApplicationFactorEnabled"
         case IntegralRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.integralRetrospectiveCorrectionEnabled"
+        case AdaptiveCarbohydrateEffectEnabled = "com.loopkit.algorithmExperiments.adaptiveCarbohydrateEffectEnabled"
     }
 
     var glucoseBasedApplicationFactorEnabled: Bool {
@@ -103,4 +104,12 @@ extension UserDefaults {
         }
     }
 
+    var adaptiveCarbohydrateEffectEnabled: Bool {
+        get {
+            bool(forKey: Key.AdaptiveCarbohydrateEffectEnabled.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.AdaptiveCarbohydrateEffectEnabled.rawValue)
+        }
+    }
 }

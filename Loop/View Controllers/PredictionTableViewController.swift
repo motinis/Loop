@@ -71,6 +71,8 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
     private var retrospectiveGlucoseDiscrepancies: [GlucoseChange]?
 
     private var totalRetrospectiveCorrection: HKQuantity?
+    
+    private var adaptiveCarbohydrateEffectNoCarbsUsed = false
 
     private var refreshContext = RefreshContext.all
 
@@ -130,6 +132,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         _ = self.refreshContext.remove(.status)
         reloadGroup.enter()
         deviceManager.loopManager.getLoopState { (manager, state) in
+            self.adaptiveCarbohydrateEffectNoCarbsUsed = state.adaptiveCarbohydrateEffectNoCarbsUsed
             self.retrospectiveGlucoseDiscrepancies = state.retrospectiveGlucoseDiscrepancies
             totalRetrospectiveCorrection = state.totalRetrospectiveCorrection
             self.glucoseChart.setPredictedGlucoseValues(state.predictedGlucoseIncludingPendingInsulin ?? [])
@@ -151,7 +154,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             if self.refreshContext.remove(.targets) != nil {
                 self.glucoseChart.targetGlucoseSchedule = manager.settings.glucoseTargetRangeSchedule
             }
-
+            
             reloadGroup.leave()
         }
 
@@ -260,6 +263,10 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         cell.accessoryType = selectedInputs.contains(input) ? .checkmark : .none
 
         var subtitleText = input.localizedDescription(forGlucoseUnit: glucoseChart.glucoseUnit) ?? ""
+        
+        if input == .carbs, adaptiveCarbohydrateEffectNoCarbsUsed {
+            subtitleText = NSLocalizedString("Adaptive Carbohydrate Effect: carbs are not used", comment: "Adaptive Carbohydrate Effect - no carbs used description")
+        }
 
         if input == .retrospection,
             let lastDiscrepancy = retrospectiveGlucoseDiscrepancies?.last,
