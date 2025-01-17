@@ -1253,6 +1253,8 @@ extension LoopDataManager {
             throw LoopError.pumpDataTooOld(date: pumpStatusDate)
         }
         
+        // FIXME for consistency we maybe always need to use the carbs prediction when potentialCarbEntry != nil ??
+        
         var momentum: [GlucoseEffect] = []
         var retrospectiveGlucoseEffect = self.retrospectiveGlucoseEffect
         var effects: [[GlucoseEffect]] = []
@@ -1662,15 +1664,23 @@ extension LoopDataManager {
             retrospectiveCorrectionGroupingInterval: LoopMath.retrospectiveCorrectionGroupingInterval
         )
         
-        
-        if carbEffects.count <= 1 || retrospectiveGlucoseEffect.count <= 1 || noCarbsRetrospectiveGlucoseEffect.count <= 1 {
+        if retrospectiveGlucoseEffect.count <= 1 || noCarbsRetrospectiveGlucoseEffect.count <= 1 {
             aceNextPredictedGlucoseValue = nil
             aceNoCarbsNextPredictedGlucoseValue = nil
         } else {
-            let startDate = retrospectiveGlucoseEffect[1].startDate
+            let prevDate = retrospectiveGlucoseEffect[0].startDate
+            let date = retrospectiveGlucoseEffect[1].startDate
+            let carbEffects = carbEffects.filter{prevDate <= $0.startDate && $0.startDate <= date}
             
-            aceNextPredictedGlucoseValue = PredictedGlucoseValue(startDate: startDate, quantity: HKQuantity(unit: unit, doubleValue: retrospectiveGlucoseEffect[1].quantity.doubleValue(for: unit) + carbEffects[1].quantity.doubleValue(for: unit) - carbEffects[0].quantity.doubleValue(for: unit)))
-            aceNoCarbsNextPredictedGlucoseValue = PredictedGlucoseValue(startDate: startDate, quantity: HKQuantity(unit: unit, doubleValue: noCarbsRetrospectiveGlucoseEffect[1].quantity.doubleValue(for: unit)))
+            let deltaCarbEffect: Double
+            if carbEffects.count < 2 {
+                deltaCarbEffect = 0
+            } else {
+                deltaCarbEffect = carbEffects[1].quantity.doubleValue(for: unit) - carbEffects[0].quantity.doubleValue(for: unit)
+            }
+            
+            aceNextPredictedGlucoseValue = PredictedGlucoseValue(startDate: date, quantity: HKQuantity(unit: unit, doubleValue: retrospectiveGlucoseEffect[1].quantity.doubleValue(for: unit) + deltaCarbEffect))
+            aceNoCarbsNextPredictedGlucoseValue = PredictedGlucoseValue(startDate: date, quantity: HKQuantity(unit: unit, doubleValue: noCarbsRetrospectiveGlucoseEffect[1].quantity.doubleValue(for: unit)))
             
         }
         

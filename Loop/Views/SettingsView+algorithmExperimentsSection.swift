@@ -41,6 +41,7 @@ public struct ExperimentRow: View {
 public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.GlucoseBasedApplicationFactorEnabled.rawValue) private var isGlucoseBasedApplicationFactorEnabled = false
     @AppStorage(UserDefaults.Key.IntegralRetrospectiveCorrectionEnabled.rawValue) private var isIntegralRetrospectiveCorrectionEnabled = false
+    @AppStorage(UserDefaults.Key.AdaptiveCarbohydrateEffectEnabled.rawValue) private var isAdaptiveCarbohydrateEffectEnabled = false
     var automaticDosingStrategy: AutomaticDosingStrategy
 
     public var body: some View {
@@ -69,6 +70,11 @@ public struct ExperimentsSettingsView: View {
                     ExperimentRow(
                         name: NSLocalizedString("Integral Retrospective Correction", comment: "Title of integral retrospective correction experiment"),
                         enabled: isIntegralRetrospectiveCorrectionEnabled)
+                }
+                NavigationLink(destination: AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: $isAdaptiveCarbohydrateEffectEnabled)) {
+                    ExperimentRow(
+                        name: NSLocalizedString("Adaptive Carbohydrate Effect", comment: "Title of adaptive carbohydrate effect experiment"),
+                        enabled: isAdaptiveCarbohydrateEffectEnabled)
                 }
                 Spacer()
             }
