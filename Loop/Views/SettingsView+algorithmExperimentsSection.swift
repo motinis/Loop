@@ -42,6 +42,7 @@ public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.GlucoseBasedApplicationFactorEnabled.rawValue) private var isGlucoseBasedApplicationFactorEnabled = false
     @AppStorage(UserDefaults.Key.IntegralRetrospectiveCorrectionEnabled.rawValue) private var isIntegralRetrospectiveCorrectionEnabled = false
     @AppStorage(UserDefaults.Key.AdaptiveCarbohydrateEffectEnabled.rawValue) private var isAdaptiveCarbohydrateEffectEnabled = false
+    @AppStorage(UserDefaults.Key.AdaptiveCarbohydrateEffectDisabledWhenBolusingCarbs.rawValue) private var isAdaptiveCarbohydrateEffectDisableWhenBolusingCarbs = false
     var automaticDosingStrategy: AutomaticDosingStrategy
 
     public var body: some View {
@@ -71,7 +72,7 @@ public struct ExperimentsSettingsView: View {
                         name: NSLocalizedString("Integral Retrospective Correction", comment: "Title of integral retrospective correction experiment"),
                         enabled: isIntegralRetrospectiveCorrectionEnabled)
                 }
-                NavigationLink(destination: AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: $isAdaptiveCarbohydrateEffectEnabled)) {
+                NavigationLink(destination: AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: $isAdaptiveCarbohydrateEffectEnabled, isDisabledWhenBolusingCarbs: $isAdaptiveCarbohydrateEffectDisableWhenBolusingCarbs)) {
                     ExperimentRow(
                         name: NSLocalizedString("Adaptive Carbohydrate Effect", comment: "Title of adaptive carbohydrate effect experiment"),
                         enabled: isAdaptiveCarbohydrateEffectEnabled)
@@ -90,6 +91,7 @@ extension UserDefaults {
         case GlucoseBasedApplicationFactorEnabled = "com.loopkit.algorithmExperiments.glucoseBasedApplicationFactorEnabled"
         case IntegralRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.integralRetrospectiveCorrectionEnabled"
         case AdaptiveCarbohydrateEffectEnabled = "com.loopkit.algorithmExperiments.adaptiveCarbohydrateEffectEnabled"
+        case AdaptiveCarbohydrateEffectDisabledWhenBolusingCarbs = "com.loopkit.algorithmExperiments.adaptiveCarbohydrateEffectDisableWhenBolusingCarbs"
     }
 
     var glucoseBasedApplicationFactorEnabled: Bool {
@@ -117,5 +119,15 @@ extension UserDefaults {
         set {
             set(newValue, forKey: Key.AdaptiveCarbohydrateEffectEnabled.rawValue)
         }
+    }
+    
+    var adaptiveCarbohydrateEffectDisabledWhenBolusingCarbs: Bool {
+        get {
+            bool(forKey: Key.AdaptiveCarbohydrateEffectDisabledWhenBolusingCarbs.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.AdaptiveCarbohydrateEffectDisabledWhenBolusingCarbs.rawValue)
+        }
+
     }
 }

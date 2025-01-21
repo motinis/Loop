@@ -1253,12 +1253,11 @@ extension LoopDataManager {
             throw LoopError.pumpDataTooOld(date: pumpStatusDate)
         }
         
-        // FIXME for consistency we maybe always need to use the carbs prediction when potentialCarbEntry != nil ??
-        
         var momentum: [GlucoseEffect] = []
         var retrospectiveGlucoseEffect = self.retrospectiveGlucoseEffect
         var effects: [[GlucoseEffect]] = []
-        var aceUseNoCarbs = self.adaptiveCarbohydrateEffectNoCarbsUsed
+        let forceUseCarbs = UserDefaults.standard.adaptiveCarbohydrateEffectEnabled && UserDefaults.standard.adaptiveCarbohydrateEffectDisabledWhenBolusingCarbs
+        var aceUseNoCarbs = !forceUseCarbs && self.adaptiveCarbohydrateEffectNoCarbsUsed 
         var aceCarbEntryNegationNeeded = false
         var aceCarbEntry: NewCarbEntry? = nil
         
@@ -1280,7 +1279,7 @@ extension LoopDataManager {
             if let potentialCarbEntry = potentialCarbEntry {
                 let retrospectiveStart = lastGlucoseDate.addingTimeInterval(-type(of: retrospectiveCorrection).retrospectionInterval)
 
-                if aceCarbEntry != nil || ((potentialCarbEntry.startDate > lastGlucoseDate || recentCarbEntries?.isEmpty != false) && replacedCarbEntry == nil) {
+                if aceCarbEntry != nil || ((potentialCarbEntry.startDate > lastGlucoseDate || recentCarbEntries?.isEmpty != false) && replacedCarbEntry == nil && !forceUseCarbs) {
                     // The potential carb effect is independent and can be summed with the existing effect
                     if let carbEffect = carbEffectOverride ?? self.carbEffect, !aceUseNoCarbs {
                         effects.append(carbEffect)

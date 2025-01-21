@@ -12,6 +12,7 @@ import LoopKitUI
 
 public struct AdaptiveCarbohydrateEffectSelectionView: View {
     @Binding var isAdaptiveCarbohydrateEffectEnabled: Bool
+    @Binding var isDisabledWhenBolusingCarbs: Bool
     
     public var body: some View {
         ScrollView {
@@ -28,6 +29,8 @@ public struct AdaptiveCarbohydrateEffectSelectionView: View {
 
                 Toggle(NSLocalizedString("Enable Adaptive Carbohydrate Effect", comment: "Title for Adaptive Carbohydrate Effect toggle"), isOn: $isAdaptiveCarbohydrateEffectEnabled)
                     .padding(.top, 20)
+                Toggle(NSLocalizedString("Disable when Manually Bolusing Carbs", comment: "Title for disable when bolusing carbs toggle"), isOn: $isDisabledWhenBolusingCarbs)
+                    .padding(.top, 20)
             }
             .padding()
         }
@@ -38,7 +41,7 @@ public struct AdaptiveCarbohydrateEffectSelectionView: View {
 
 struct AdaptiveCarbEffectSelectionView_Previews: PreviewProvider {
     static var previews: some View {
-        AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: .constant(true))
+        AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: .constant(true), isDisabledWhenBolusingCarbs: .constant(true))
     }
 }
 
