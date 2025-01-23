@@ -21,7 +21,7 @@ public struct CarbBolusSelectionView: View {
         
         ScrollView {
             VStack(spacing: 10) {
-                Text(NSLocalizedString("Carb Bolus Recommendation", comment: "Title for carb bolus recommendation description"))
+                Text(NSLocalizedString("Meal Entry Preference", comment: "Title for meal bolus recommendation description"))
                     .font(.headline)
                     .padding(.bottom, 20)
 
