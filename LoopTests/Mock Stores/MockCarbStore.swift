@@ -60,6 +60,8 @@ class MockCarbStore: CarbStoreProtocol {
     
     var sharingDenied: Bool = false
     
+    var carbsOnBoard: CarbValue? = nil
+    
     func authorize(toShare: Bool, read: Bool, _ completion: @escaping (HealthKitSampleStoreResult<Bool>) -> Void) {
         completion(.success(true))
     }
@@ -89,6 +91,9 @@ class MockCarbStore: CarbStoreProtocol {
     }
     
     func carbsOnBoard(at date: Date, effectVelocities: [GlucoseEffectVelocity]?, completion: @escaping (CarbStoreResult<CarbValue>) -> Void) {
+        if let carbsOnBoard = carbsOnBoard {
+            return completion(.success(carbsOnBoard))
+        }
         completion(.failure(.notConfigured))
     }
     

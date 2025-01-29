@@ -127,7 +127,9 @@ class LoopDataManagerTests: XCTestCase {
                basalDeliveryState: PumpManagerStatus.BasalDeliveryState? = nil,
                maxBolus: Double = 10,
                maxBasalRate: Double = 5.0,
-               dosingStrategy: AutomaticDosingStrategy = .tempBasalOnly)
+               dosingStrategy: AutomaticDosingStrategy = .tempBasalOnly,
+               carbsOnBoard: CarbValue? = nil,
+               adapativeCarbohydrateEffectEnabled: Bool = false)
     {
         let basalRateSchedule = loadBasalRateScheduleFixture("basal_profile")
         let insulinSensitivitySchedule = InsulinSensitivitySchedule(
@@ -166,9 +168,12 @@ class LoopDataManagerTests: XCTestCase {
         let carbStore = MockCarbStore(for: test)
         carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
         carbStore.carbRatioSchedule = carbRatioSchedule
+        carbStore.carbsOnBoard = carbsOnBoard
         
         let currentDate = glucoseStore.latestGlucose!.startDate
         now = currentDate
+        
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = adapativeCarbohydrateEffectEnabled
         
         dosingDecisionStore = MockDosingDecisionStore()
         automaticDosingStatus = AutomaticDosingStatus(automaticDosingEnabled: true, isAutomaticDosingAllowed: true)
@@ -193,6 +198,10 @@ class LoopDataManagerTests: XCTestCase {
     
     override func tearDownWithError() throws {
         loopDataManager = nil
+    }
+    
+    deinit {
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = false
     }
 }
 

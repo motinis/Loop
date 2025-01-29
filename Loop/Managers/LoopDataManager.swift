@@ -1635,7 +1635,7 @@ extension LoopDataManager {
             retrospectiveCorrectionGroupingInterval: LoopMath.retrospectiveCorrectionGroupingInterval
         )
         
-        guard UserDefaults.standard.adaptiveCarbohydrateEffectEnabled, let cob = carbsOnBoard, cob.quantity.doubleValue(for: .gram()) > 10 else {
+        guard UserDefaults.standard.adaptiveCarbohydrateEffectEnabled, let cob = carbsOnBoard, cob.value > 10 else {
             aceUseNoCarbs = false
             aceNextPredictedGlucoseValue = nil
             aceNoCarbsNextPredictedGlucoseValue = nil
