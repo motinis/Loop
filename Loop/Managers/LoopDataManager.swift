@@ -359,10 +359,10 @@ final class LoopDataManager {
         }
     }
     
-    /// Adaptive Carbohydrate Effect predicted values
+    /// whether Adaptive Carbohydrate Effect should use no carbs
     private var aceUseNoCarbs = false
-    private var aceNextPredictedGlucoseValue: PredictedGlucoseValue?
-    private var aceNoCarbsNextPredictedGlucoseValue: PredictedGlucoseValue?
+    /// promoted to a member for ACE. is set before updateRetrospectiveGlucoseEffect() is called
+    private var historicalGlucose: [HistoricalGlucoseValue]?
     
     var adaptiveCarbohydrateEffectNoCarbsUsed: Bool {
         UserDefaults.standard.adaptiveCarbohydrateEffectEnabled && aceUseNoCarbs
@@ -981,7 +981,6 @@ extension LoopDataManager {
         let inputDataRecencyStartDate = Date(timeInterval: -LoopCoreConstants.inputDataRecencyInterval, since: now())
 
         // Fetch glucose effects as far back as we want to make retroactive analysis and historical glucose for dosing decision
-        var historicalGlucose: [HistoricalGlucoseValue]?
         var latestGlucoseDate: Date?
         updateGroup.enter()
         glucoseStore.getGlucoseSamples(start: min(historicalGlucoseStartDate, inputDataRecencyStartDate), end: nil) { (result) in
@@ -991,7 +990,7 @@ extension LoopDataManager {
                 latestGlucoseDate = nil
                 warnings.append(.fetchDataWarning(.glucoseSamples(error: error)))
             case .success(let samples):
-                historicalGlucose = samples.filter { $0.startDate >= historicalGlucoseStartDate }.map { HistoricalGlucoseValue(startDate: $0.startDate, quantity: $0.quantity) }
+                self.historicalGlucose = samples.filter { $0.startDate >= historicalGlucoseStartDate }.map { HistoricalGlucoseValue(startDate: $0.startDate, quantity: $0.quantity) }
                 latestGlucoseDate = samples.last?.startDate
             }
             updateGroup.leave()
@@ -1600,8 +1599,6 @@ extension LoopDataManager {
             retrospectiveGlucoseEffect = []
             
             aceUseNoCarbs = false
-            aceNextPredictedGlucoseValue = nil
-            aceNoCarbsNextPredictedGlucoseValue = nil
             
             throw LoopError.missingDataError(.carbEffect)
         }
@@ -1611,8 +1608,6 @@ extension LoopDataManager {
             retrospectiveGlucoseEffect = []
             
             aceUseNoCarbs = false
-            aceNextPredictedGlucoseValue = nil
-            aceNoCarbsNextPredictedGlucoseValue = nil
             
             throw LoopError.missingDataError(.glucose)
         }
@@ -1635,59 +1630,89 @@ extension LoopDataManager {
             retrospectiveCorrectionGroupingInterval: LoopMath.retrospectiveCorrectionGroupingInterval
         )
         
-        guard UserDefaults.standard.adaptiveCarbohydrateEffectEnabled, let cob = carbsOnBoard, cob.value > 10 else {
+        let cob = carbsOnBoard?.value ?? 0
+        
+        guard UserDefaults.standard.adaptiveCarbohydrateEffectEnabled, cob > 0, let historicalGlucose = historicalGlucose, retrospectiveGlucoseEffect.count > 1 else {
             aceUseNoCarbs = false
-            aceNextPredictedGlucoseValue = nil
-            aceNoCarbsNextPredictedGlucoseValue = nil
             return
         }
         
-        let unit: HKUnit = .milligramsPerDeciliter
-        
-        
-        if let aceValue = aceNextPredictedGlucoseValue, let aceNoCarbsValue = aceNoCarbsNextPredictedGlucoseValue, abs(glucose.startDate.timeIntervalSince(aceValue.startDate).minutes) <= 1 {
+        let delta = retrospectiveGlucoseEffect[0].startDate.timeIntervalSince(retrospectiveGlucoseEffect[1].startDate)
+
+        guard let prevGlucose = historicalGlucose.filterDateRange(glucose.startDate.addingTimeInterval(delta).addingTimeInterval(.minutes(-1)), glucose.startDate.addingTimeInterval(delta).addingTimeInterval(.minutes(1))).last else {
             
-            let value = glucose.quantity.doubleValue(for: unit)
-            aceUseNoCarbs = abs(aceNoCarbsValue.quantity.doubleValue(for: unit) - value) < abs(aceValue.quantity.doubleValue(for: unit) - value)
+            aceUseNoCarbs = false
+            return
         }
         
-        let noCarbsGlucoseDiscrepancies = insulinCounteractionEffects.subtracting([GlucoseEffect](), withUniformInterval: carbStore.delta)
+        let prevInsulinSensivity = settings.insulinSensitivitySchedule!.quantity(at: prevGlucose.startDate)
+        let prevBasalRate = settings.basalRateSchedule!.value(at: prevGlucose.startDate)
+        let prevCorrectionRange = settings.glucoseTargetRangeSchedule!.quantityRange(at: prevGlucose.startDate)
         
-        let (noCarbsRetrospectiveGlucoseEffect, noCarbsRetrospectiveTotalCorrection) = retrospectiveCorrection.computeEffect(
-            startingAt: glucose,
-            retrospectiveGlucoseDiscrepanciesSummed: sumGlucoseDiscrepancies(noCarbsGlucoseDiscrepancies),
+        let noCarbsGlucoseDiscrepancies = insulinCounteractionEffects.subtracting([carbEffects.first!], withUniformInterval: carbStore.delta)
+        
+        let prevRetroDiscrepancies = retrospectiveGlucoseDiscrepancies?.filter{$0.startDate <= prevGlucose.startDate}
+        let prevNoCarbsRetroDiscrepancies = noCarbsGlucoseDiscrepancies.filter{$0.startDate <= prevGlucose.startDate}
+        
+        let (prevRetroEffect, _) = retrospectiveCorrection.computeEffect(
+            startingAt: prevGlucose,
+            retrospectiveGlucoseDiscrepanciesSummed: sumGlucoseDiscrepancies(prevRetroDiscrepancies),
             recencyInterval: LoopCoreConstants.inputDataRecencyInterval,
-            insulinSensitivity: insulinSensitivity,
-            basalRate: basalRate,
-            correctionRange: correctionRange,
+            insulinSensitivity: prevInsulinSensivity,
+            basalRate: prevBasalRate,
+            correctionRange: prevCorrectionRange,
             retrospectiveCorrectionGroupingInterval: LoopMath.retrospectiveCorrectionGroupingInterval
         )
         
-        if retrospectiveGlucoseEffect.count <= 1 || noCarbsRetrospectiveGlucoseEffect.count <= 1 {
-            aceNextPredictedGlucoseValue = nil
-            aceNoCarbsNextPredictedGlucoseValue = nil
+        let (prevNoCarbsRetroEffect, _) = retrospectiveCorrection.computeEffect(
+            startingAt: prevGlucose,
+            retrospectiveGlucoseDiscrepanciesSummed: sumGlucoseDiscrepancies(prevNoCarbsRetroDiscrepancies),
+            recencyInterval: LoopCoreConstants.inputDataRecencyInterval,
+            insulinSensitivity: prevInsulinSensivity,
+            basalRate: prevBasalRate,
+            correctionRange: prevCorrectionRange,
+            retrospectiveCorrectionGroupingInterval: LoopMath.retrospectiveCorrectionGroupingInterval
+        )
+        
+        guard prevRetroEffect.count > 1, prevNoCarbsRetroEffect.count > 1 else {
+            aceUseNoCarbs = false
+            return
+        }
+        // note that retrospectiveGlucoseEffects and carbEffects are aligned to 5 minutes on the clock (e.g. 00:05 00:10, etc.)
+        let startDate = prevRetroEffect[0].startDate
+        let endDate = prevRetroEffect[1].startDate
+        let filteredCarbEffects = carbEffects.filter{startDate <= $0.startDate && $0.startDate <= endDate}
+        
+        let unit: HKUnit = .milligramsPerDeciliter
+        
+        let deltaCarbEffect: Double
+        if filteredCarbEffects.count < 2 {
+            deltaCarbEffect = 0
         } else {
-            let prevDate = retrospectiveGlucoseEffect[0].startDate
-            let date = retrospectiveGlucoseEffect[1].startDate
-            let carbEffects = carbEffects.filter{prevDate <= $0.startDate && $0.startDate <= date}
-            
-            let deltaCarbEffect: Double
-            if carbEffects.count < 2 {
-                deltaCarbEffect = 0
-            } else {
-                deltaCarbEffect = carbEffects[1].quantity.doubleValue(for: unit) - carbEffects[0].quantity.doubleValue(for: unit)
-            }
-            
-            aceNextPredictedGlucoseValue = PredictedGlucoseValue(startDate: date, quantity: HKQuantity(unit: unit, doubleValue: retrospectiveGlucoseEffect[1].quantity.doubleValue(for: unit) + deltaCarbEffect))
-            aceNoCarbsNextPredictedGlucoseValue = PredictedGlucoseValue(startDate: date, quantity: HKQuantity(unit: unit, doubleValue: noCarbsRetrospectiveGlucoseEffect[1].quantity.doubleValue(for: unit)))
-            
+            deltaCarbEffect = filteredCarbEffects.last!.quantity.doubleValue(for: unit) - filteredCarbEffects.first!.quantity.doubleValue(for: unit)
+        }
+
+        let value = glucose.quantity.doubleValue(for: unit)
+        let carbsPrediction = prevRetroEffect[1].quantity.doubleValue(for: unit) + deltaCarbEffect
+        let noCarbsPrediction = prevNoCarbsRetroEffect[1].quantity.doubleValue(for: unit)
+
+        aceUseNoCarbs = abs(noCarbsPrediction - value) < abs(carbsPrediction - value) && (cob > 10 || noCarbsPrediction < carbsPrediction)
+        
+        guard aceUseNoCarbs else {
+            return
         }
         
-        if aceUseNoCarbs {
-            retrospectiveGlucoseDiscrepancies = noCarbsGlucoseDiscrepancies
-            retrospectiveGlucoseEffect = noCarbsRetrospectiveGlucoseEffect
-            retrospectiveTotalGlucoseCorrection = noCarbsRetrospectiveTotalCorrection
-        }
+        // switch over to no carbs for retrospective!
+        retrospectiveGlucoseDiscrepancies = noCarbsGlucoseDiscrepancies
+        (retrospectiveGlucoseEffect, retrospectiveTotalGlucoseCorrection) = retrospectiveCorrection.computeEffect(
+                startingAt: glucose,
+                retrospectiveGlucoseDiscrepanciesSummed: retrospectiveGlucoseDiscrepanciesSummed,
+                recencyInterval: LoopCoreConstants.inputDataRecencyInterval,
+                insulinSensitivity: insulinSensitivity,
+                basalRate: basalRate,
+                correctionRange: correctionRange,
+                retrospectiveCorrectionGroupingInterval: LoopMath.retrospectiveCorrectionGroupingInterval
+        )
     }
 
     private func computeRetrospectiveGlucoseEffect(startingAt glucose: GlucoseValue, carbEffects: [GlucoseEffect]) -> [GlucoseEffect] {

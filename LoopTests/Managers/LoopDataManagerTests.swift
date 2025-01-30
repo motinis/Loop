@@ -189,7 +189,7 @@ class LoopDataManagerTests: XCTestCase {
             carbStore: carbStore,
             dosingDecisionStore: dosingDecisionStore,
             latestStoredSettingsProvider: MockLatestStoredSettingsProvider(),
-            now: { currentDate },
+            now: { glucoseStore.latestGlucose!.startDate },
             pumpInsulinType: .novolog,
             automaticDosingStatus: automaticDosingStatus,
             trustedTimeOffset: { 0 }
@@ -198,10 +198,8 @@ class LoopDataManagerTests: XCTestCase {
     
     override func tearDownWithError() throws {
         loopDataManager = nil
-    }
-    
-    deinit {
         UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = false
+        UserDefaults.standard.adaptiveCarbohydrateEffectDisabledWhenBolusingCarbs = false
     }
 }
 
