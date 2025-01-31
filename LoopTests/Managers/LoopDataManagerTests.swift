@@ -199,7 +199,6 @@ class LoopDataManagerTests: XCTestCase {
     override func tearDownWithError() throws {
         loopDataManager = nil
         UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = false
-        UserDefaults.standard.adaptiveCarbohydrateEffectDisabledWhenBolusingCarbs = false
     }
 }
 

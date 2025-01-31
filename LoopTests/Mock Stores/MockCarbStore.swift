@@ -11,6 +11,7 @@ import LoopKit
 @testable import Loop
 
 class MockCarbStore: CarbStoreProtocol {
+    
     var carbHistory: [StoredCarbEntry]?
 
     init(for scenario: DosingTestScenario = .flatAndStable) {
@@ -53,6 +54,7 @@ class MockCarbStore: CarbStoreProtocol {
     }
     
     var delta: TimeInterval = .minutes(5)
+    var delay: TimeInterval = .minutes(10)
     
     var defaultAbsorptionTimes: CarbStore.DefaultAbsorptionTimes = (fast: .minutes(30), medium: .hours(3), slow: .hours(5))
     

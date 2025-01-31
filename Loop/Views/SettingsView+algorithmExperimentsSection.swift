@@ -119,15 +119,5 @@ extension UserDefaults {
         set {
             set(newValue, forKey: Key.AdaptiveCarbohydrateEffectEnabled.rawValue)
         }
-    }
-    
-    var adaptiveCarbohydrateEffectDisabledWhenBolusingCarbs: Bool {
-        get {
-            bool(forKey: Key.AdaptiveCarbohydrateEffectDisabledWhenBolusingCarbs.rawValue) as Bool
-        }
-        set {
-            set(newValue, forKey: Key.AdaptiveCarbohydrateEffectDisabledWhenBolusingCarbs.rawValue)
-        }
-
-    }
+    }    
 }

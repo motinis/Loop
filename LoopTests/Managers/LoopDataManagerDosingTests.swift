@@ -270,7 +270,6 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
                     smallerPredictedGlucose = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: smallerNewCarbEntry, replacingCarbEntry: lastCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
                     plusModifiedPredictedGlucose = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: plusModifiedNewCarbEntry, replacingCarbEntry: nil, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
                     
-                    UserDefaults.standard.adaptiveCarbohydrateEffectDisabledWhenBolusingCarbs = true
                     forcedUseCarbsPredictedGlucose = try state.predictGlucose(using: .carbs)
                     forcedUseCarbsWithEntryPredictedGlucose = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: plusModifiedNewCarbEntry, replacingCarbEntry: nil, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
                 } catch {
