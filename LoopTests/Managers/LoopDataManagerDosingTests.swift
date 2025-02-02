@@ -236,94 +236,60 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
             automaticDosingStatus: automaticDosingStatus,
             trustedTimeOffset: { 0 }
         )
-
         
-        let lastCarbEntry = predictionInput.carbEntries.last!
-        let lastCarbEntryGrams = lastCarbEntry.quantity.doubleValue(for: .gram())
-        let plusNewCarbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 3), startDate: lastCarbEntry.startDate, foodType: lastCarbEntry.foodType, absorptionTime: lastCarbEntry.absorptionTime)
-        let biggerNewCarbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: lastCarbEntryGrams + 3), startDate: lastCarbEntry.startDate, foodType: lastCarbEntry.foodType, absorptionTime: lastCarbEntry.absorptionTime)
-        let smallerNewCarbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: lastCarbEntryGrams - 3), startDate: lastCarbEntry.startDate, foodType: lastCarbEntry.foodType, absorptionTime: lastCarbEntry.absorptionTime)
-        let plusModifiedNewCarbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 3), startDate: lastCarbEntry.startDate.addingTimeInterval(.seconds(1E-3)), foodType: lastCarbEntry.foodType, absorptionTime: lastCarbEntry.absorptionTime)
+        
+        let replacedCarbEntry = carbStore.carbHistory?.max{ a, b in a.startDate < b.startDate }
+        let latestGlucoseDate = currentDate.addingTimeInterval(.minutes(5))
 
-        var predictedGlucose: [PredictedGlucoseValue]? = nil
-        var carbsPredictedGlucose: [GlucoseValue]? = nil
-        var plusPredictedGlucose: [GlucoseValue]? = nil
-        var biggerPredictedGlucose: [GlucoseValue]? = nil
-        var smallerPredictedGlucose: [GlucoseValue]? = nil
-        var plusModifiedPredictedGlucose: [GlucoseValue]? = nil
-        var forcedUseCarbsPredictedGlucose: [GlucoseValue]? = nil
-        var forcedUseCarbsWithEntryPredictedGlucose: [GlucoseValue]? = nil
+        let minutesDiff = -45...5
+        var deltaCarbEffects = [Double?]()
         
         let updateGroup = DispatchGroup()
         updateGroup.enter()
         self.loopDataManager.getLoopState { _, _ in
             // this establishes the first prediction - after which we want to do our next prediction which should be for NoCarbs
-            glucoseStore.storedGlucose?.append(StoredGlucoseSample(startDate: currentDate.addingTimeInterval(.minutes(5)), quantity: HKQuantity(unit: .milligramsPerDeciliter, doubleValue: 182)))
+            glucoseStore.storedGlucose?.append(StoredGlucoseSample(startDate: latestGlucoseDate, quantity: HKQuantity(unit: .milligramsPerDeciliter, doubleValue: 182)))
             NotificationCenter.default.post(name: GlucoseStore.glucoseSamplesDidChange, object: glucoseStore)
 
             self.loopDataManager.getLoopState { _, state in
-                predictedGlucose = state.predictedGlucoseIncludingPendingInsulin
-                do {
-                    carbsPredictedGlucose = try state.predictGlucose(using: .carbs)
-                    plusPredictedGlucose = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: plusNewCarbEntry, replacingCarbEntry: nil, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
-                    biggerPredictedGlucose = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: biggerNewCarbEntry, replacingCarbEntry: lastCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
-                    smallerPredictedGlucose = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: smallerNewCarbEntry, replacingCarbEntry: lastCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
-                    plusModifiedPredictedGlucose = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: plusModifiedNewCarbEntry, replacingCarbEntry: nil, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
-                    
-                    forcedUseCarbsPredictedGlucose = try state.predictGlucose(using: .carbs)
-                    forcedUseCarbsWithEntryPredictedGlucose = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: plusModifiedNewCarbEntry, replacingCarbEntry: nil, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
-                } catch {
+                for diff in minutesDiff {
+                    do {
+                        let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 10), startDate: latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))), foodType: nil, absorptionTime: .hours(3))
+                        let prediction = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: carbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
+                        
+                        if !prediction.isEmpty {
+                            deltaCarbEffects.append(prediction.last!.quantity.doubleValue(for: .milligramsPerDeciliter) - prediction.first!.quantity.doubleValue(for: .milligramsPerDeciliter))
+                        } else {
+                            deltaCarbEffects.append(nil)
+                        }
+                    } catch {
+                    }
                 }
                 updateGroup.leave()
             }
         }
         // We need to wait until the task completes to get outputs
         updateGroup.wait()
+        
+        let totalAbsorptionTime = 1.5 * .hours(3)
 
-        let unit: HKUnit = .milligramsPerDeciliter
-
-        XCTAssertNotNil(predictedGlucose)
-
-        XCTAssertGreaterThan(predictedGlucose!.count, 2)
-        
-        let glucoseValue = predictedGlucose![1]
-        XCTAssertEqual(currentDate.addingTimeInterval(.minutes(10)).dateFlooredToTimeInterval(.minutes(5)), glucoseValue.startDate)
-        XCTAssertEqual(182.67, glucoseValue.quantity.doubleValue(for: unit), accuracy: defaultAccuracy)
-        XCTAssertNotNil(carbsPredictedGlucose)
-        carbsPredictedGlucose!.forEach{XCTAssertEqual(182, $0.quantity.doubleValue(for: unit))}
-        
-        XCTAssertNotNil(plusPredictedGlucose)
-        XCTAssertNotNil(biggerPredictedGlucose)
-        XCTAssertNotNil(smallerPredictedGlucose)
-        
-        XCTAssertEqual(plusPredictedGlucose!.count, biggerPredictedGlucose!.count)
-        XCTAssertEqual(biggerPredictedGlucose!.count, smallerPredictedGlucose!.count)
-        
-        for (index, element) in plusPredictedGlucose!.enumerated() {
-            if index == 0 {
-                continue
+        var unweightedDiffs = [Double]()
+        for (index, diff) in minutesDiff.enumerated() {
+            let delta = deltaCarbEffects[index]
+            XCTAssertNotNil(delta)
+            if diff <= -40 {
+                XCTAssertEqual(0.0, delta!)
+            } else {
+                XCTAssertNotEqual(0.0, delta!)
+                let weight = min(1.0, 1.0 + (Double(diff) + 10)/30)
+                let carbEffectStart = latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))).addingTimeInterval(carbStore.delay)
+                let absorbedTimeBeforeStart = latestGlucoseDate.timeIntervalSince(carbEffectStart)
+                let weightAdjustment = 1 - max(0, min(1, absorbedTimeBeforeStart / totalAbsorptionTime))
+                
+                unweightedDiffs.append(delta! / (weight * weightAdjustment))
             }
-            let delta = element.quantity.doubleValue(for: unit) - plusPredictedGlucose![index - 1].quantity.doubleValue(for: unit)
-            let biggerDelta = biggerPredictedGlucose![index].quantity.doubleValue(for: unit) - biggerPredictedGlucose![index - 1].quantity.doubleValue(for: unit)
-            let smallerDelta = smallerPredictedGlucose![index].quantity.doubleValue(for: unit) - smallerPredictedGlucose![index - 1].quantity.doubleValue(for: unit)
-            
-            XCTAssertEqual(delta, biggerDelta)
-            XCTAssertEqual(-delta, smallerDelta)
         }
-        
-        XCTAssertNotNil(plusModifiedPredictedGlucose)
-        XCTAssertNotNil(forcedUseCarbsPredictedGlucose)
-        XCTAssertNotNil(forcedUseCarbsWithEntryPredictedGlucose)
-        
-        XCTAssertNotEqual(forcedUseCarbsPredictedGlucose!.map{$0.quantity.doubleValue(for: unit)}.min(),
-                          forcedUseCarbsPredictedGlucose!.map{$0.quantity.doubleValue(for: unit)}.max())
-        
-        XCTAssertEqual(plusModifiedPredictedGlucose!.count, forcedUseCarbsWithEntryPredictedGlucose!.count)
-        for (index, element) in plusModifiedPredictedGlucose!.enumerated() {
-            let other = forcedUseCarbsWithEntryPredictedGlucose![index]
-            XCTAssertEqual(element.startDate, other.startDate)
-            XCTAssertEqual(element.quantity, other.quantity)
-        }
+        XCTAssertEqual(unweightedDiffs.min()!, unweightedDiffs.max()!, accuracy: 1E-9)
     }
     
     func testACECarbsForecastFromLiveCaptureInputData() {
@@ -406,20 +372,22 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
             trustedTimeOffset: { 0 }
         )
         
-        var predictedGlucose: [PredictedGlucoseValue]?
         var carbsPredictedGlucose: [GlucoseValue]? = nil
+        
+        // only the last carb-entry is still active - we replace it with one that would have zero weight in noCarbs
+        let replacedCarbEntry = carbStore.carbHistory!.max{ a, b in a.startDate < b.startDate }!
+        let newCarbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 100), startDate: replacedCarbEntry.startDate.addingTimeInterval(.minutes(-30)), foodType: nil, absorptionTime: .hours(5))
 
         let updateGroup = DispatchGroup()
         updateGroup.enter()
         self.loopDataManager.getLoopState { _, _ in
-            // this establishes the first prediction - after which we want to do our next prediction which should be for NoCarbs
+            // this establishes the first prediction - after which we want to do our next prediction which should be for Carbs (i.e. not useNoCarbs)
             glucoseStore.storedGlucose?.append(StoredGlucoseSample(startDate: currentDate.addingTimeInterval(.minutes(5)), quantity: HKQuantity(unit: .milligramsPerDeciliter, doubleValue: 196)))
             NotificationCenter.default.post(name: GlucoseStore.glucoseSamplesDidChange, object: glucoseStore)
 
             self.loopDataManager.getLoopState { _, state in
-                predictedGlucose = state.predictedGlucoseIncludingPendingInsulin
                 do {
-                    carbsPredictedGlucose = try state.predictGlucose(using: .carbs)
+                    carbsPredictedGlucose = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: newCarbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
                 } catch {
                 }
                 updateGroup.leave()
@@ -428,17 +396,12 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         // We need to wait until the task completes to get outputs
         updateGroup.wait()
 
-        XCTAssertNotNil(predictedGlucose)
-
-        XCTAssertGreaterThan(predictedGlucose!.count, 2)
         
-        let glucoseValue = predictedGlucose![1]
-        
-        XCTAssertEqual(currentDate.addingTimeInterval(.minutes(10)).dateFlooredToTimeInterval(.minutes(5)), glucoseValue.startDate)
         XCTAssertNotNil(carbsPredictedGlucose)
         XCTAssertFalse(carbsPredictedGlucose!.isEmpty)
-        XCTAssertNotEqual(carbsPredictedGlucose!.map{$0.quantity.doubleValue(for: .milligramsPerDeciliter)}.min(),
-                          carbsPredictedGlucose!.map{$0.quantity.doubleValue(for: .milligramsPerDeciliter)}.max())
+        
+        let values = carbsPredictedGlucose!.map{$0.quantity.doubleValue(for: .milligramsPerDeciliter)}
+        XCTAssertGreaterThan(values.last! - values.first!, 10.0) // proof that the weight isn't 0 and !aceUseNoCarbs
     }
 
 

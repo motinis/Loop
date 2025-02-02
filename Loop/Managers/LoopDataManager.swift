@@ -1272,29 +1272,28 @@ extension LoopDataManager {
         var retrospectiveGlucoseEffect = self.retrospectiveGlucoseEffect
         var effects: [[GlucoseEffect]] = []
         let aceUseNoCarbs = self.adaptiveCarbohydrateEffectNoCarbsUsed
-        let discrepancyStartDate = lastGlucoseDate.addingTimeInterval(-LoopMath.retrospectiveCorrectionGroupingInterval)
-        var aceCarbEntryNegationNeeded = false
-        var aceCarbEntry: NewCarbEntry? = nil
-        
-        if aceUseNoCarbs, inputs.contains(.carbs), let carbEntry = potentialCarbEntry, let replacedEntry = replacedCarbEntry {
-            if carbEntry.startDate == replacedEntry.startDate, carbEntry.absorptionTime == replacedEntry.absorptionTime {
-                // just the quantity is changing in the carb entry
-                let deltaGrams = carbEntry.quantity.doubleValue(for: .gram()) - replacedEntry.quantity.doubleValue(for: .gram())
-                aceCarbEntryNegationNeeded = deltaGrams.sign == .minus
-                aceCarbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: abs(deltaGrams)), startDate: carbEntry.startDate, foodType: carbEntry.foodType, absorptionTime: carbEntry.absorptionTime)
-            }
-        }
-
+        let mgdL: HKUnit = .milligramsPerDeciliter
+          
         let insulinCounteractionEffects = insulinCounteractionEffectsOverride ?? self.insulinCounteractionEffects
         if inputs.contains(.carbs) {
-            let retrospectiveStart = lastGlucoseDate.addingTimeInterval(-type(of: retrospectiveCorrection).retrospectionInterval)
+            let retrospectionInterval = type(of: retrospectiveCorrection).retrospectionInterval
+            let retrospectiveStart = lastGlucoseDate.addingTimeInterval(-retrospectionInterval)
+            
 
             if aceUseNoCarbs {
                 // past carb effects go into the noCarbsRetrospectiveGlucoseEffect
                 // we still need to calculate future carb effects. Weights are used for those
                 // carb entries whose effects only started in the retrospective window
+                let cutoffTime = retrospectiveStart.addingTimeInterval(.hours(-0.5))
+                let forwardIntervalDate = lastGlucoseDate.addingTimeInterval(retrospectionInterval)
+                let widenedWindowDate = forwardIntervalDate.addingTimeInterval(carbStore.delta)
+                
                 let carbEntries = prepareEntriesForCarbsEffect(potentialCarbEntry, replacedCarbEntry)
                 for carbEntry in carbEntries {
+                    guard carbEntry.startDate > cutoffTime else {
+                        continue
+                    }
+                    
                     var carbEffect = try carbStore.glucoseEffects(
                         of: [carbEntry],
                         startingAt: retrospectiveStart,
@@ -1302,11 +1301,38 @@ extension LoopDataManager {
                         effectVelocities: insulinCounteractionEffects
                     )
                     
-                    let weight = max(0, min(1, 1 - lastGlucoseDate.timeIntervalSince(carbEntry.startDate.addingTimeInterval(carbStore.delay)).minutes / type(of: retrospectiveCorrection).retrospectionInterval))
                     
-                    if weight > 0 {
+                    // simple calculation for weight which assumes a "block" shape to carb effect
+                    var weight = max(0, min(1, 1 - lastGlucoseDate.timeIntervalSince(carbEntry.startDate.addingTimeInterval(carbStore.delay)) / type(of: retrospectiveCorrection).retrospectionInterval))
+                    
+                    // for simplicity we average this with a bucketed calculation; note that if the implementation changes such that effects are aligned to the lastGlucoseDate (instead of delta on the clock), then the averaging isn't needed since the bucketed calculation would be accurate
+                    let windowEffects = carbEffect.filterDateRange(retrospectiveStart, widenedWindowDate)
+                    
+                    if windowEffects.count > 2 {
+                        var retroIntervalWeight = 0.0
+                        var nextIntervalWeight = 0.0
+                        var prevValue = windowEffects[0].quantity.doubleValue(for: mgdL)
+
+                        for effect in windowEffects {
+                            let value = effect.quantity.doubleValue(for: mgdL)
+                            if retrospectiveStart <= effect.startDate, effect.startDate < forwardIntervalDate {
+                                retroIntervalWeight += value - prevValue
+                            } else if effect.startDate < widenedWindowDate {
+                                nextIntervalWeight += value - prevValue
+                            }
+                            prevValue = value
+                        }
+                        
+                        let denom = retroIntervalWeight + nextIntervalWeight
+                        if denom > 0 {
+                            weight = 0.5 * (weight + max(0, min(1, (nextIntervalWeight - retroIntervalWeight)/denom)))
+                        }
+                    }
+                    
+                    if weight > 0, !carbEffect.isEmpty {
                         if weight < 1 {
-                            carbEffect = carbEffect.map{GlucoseEffect(startDate: $0.startDate, quantity: HKQuantity(unit: .milligramsPerDeciliter, doubleValue: weight * $0.quantity.doubleValue(for: .milligramsPerDeciliter)))}
+                            let startValue = carbEffect[0].quantity.doubleValue(for: mgdL)
+                            carbEffect = carbEffect.map{GlucoseEffect(startDate: $0.startDate, quantity: HKQuantity(unit: mgdL, doubleValue: startValue + weight * ($0.quantity.doubleValue(for: mgdL) - startValue)))}
                         }
                         
                         effects.append(carbEffect)
@@ -1314,8 +1340,6 @@ extension LoopDataManager {
                 }
             }
             else if let potentialCarbEntry = potentialCarbEntry {
-                let retrospectiveStart = lastGlucoseDate.addingTimeInterval(-type(of: retrospectiveCorrection).retrospectionInterval)
-
                 if potentialCarbEntry.startDate > lastGlucoseDate || recentCarbEntries?.isEmpty != false, replacedCarbEntry == nil {
                     // The potential carb effect is independent and can be summed with the existing effect
                     if let carbEffect = carbEffectOverride ?? self.carbEffect {
@@ -1376,7 +1400,7 @@ extension LoopDataManager {
         }
 
         if inputs.contains(.momentum), let momentumEffect = self.glucoseMomentumEffect {
-            if !includingPositiveVelocityAndRC, let netMomentum = momentumEffect.netEffect(), netMomentum.quantity.doubleValue(for: .milligramsPerDeciliter) > 0 {
+            if !includingPositiveVelocityAndRC, let netMomentum = momentumEffect.netEffect(), netMomentum.quantity.doubleValue(for: mgdL) > 0 {
                 momentum = []
             } else {
                 momentum = momentumEffect
@@ -1384,7 +1408,7 @@ extension LoopDataManager {
         }
 
         if inputs.contains(.retrospection) {
-            if !includingPositiveVelocityAndRC, let netRC = retrospectiveGlucoseEffect.netEffect(), netRC.quantity.doubleValue(for: .milligramsPerDeciliter) > 0 {
+            if !includingPositiveVelocityAndRC, let netRC = retrospectiveGlucoseEffect.netEffect(), netRC.quantity.doubleValue(for: mgdL) > 0 {
                 // positive RC is turned off
             } else {
                 effects.append(retrospectiveGlucoseEffect)

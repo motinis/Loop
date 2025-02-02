@@ -85,7 +85,58 @@ class MockCarbStore: CarbStoreProtocol {
     }
     
     func glucoseEffects<Sample>(of samples: [Sample], startingAt start: Date, endingAt end: Date?, effectVelocities: [LoopKit.GlucoseEffectVelocity]) throws -> [LoopKit.GlucoseEffect] where Sample : LoopKit.CarbEntry {
-        return []
+        
+        guard let carbRatioScheduleApplyingOverrideHistory, let insulinSensitivityScheduleApplyingOverrideHistory else {
+            return []
+        }
+        
+        guard !samples.isEmpty else {
+            return []
+        }
+
+        var startDates = [Date]()
+        var durations = [TimeInterval]()
+        var amounts = [Double]()
+        
+        var maxEndDate: Date = .distantPast
+        
+        for sample in samples {
+            if let carbEntry = sample as? NewCarbEntry {
+                startDates.append(carbEntry.startDate.addingTimeInterval(delay))
+                amounts.append(carbEntry.quantity.doubleValue(for: .gram()))
+            } else if let storedEntry = sample as? StoredCarbEntry {
+                startDates.append(storedEntry.startDate.addingTimeInterval(delay))
+                amounts.append(storedEntry.quantity.doubleValue(for: .gram()))
+            } else {
+                startDates.append(start.addingTimeInterval(delay))
+                amounts.append(10)
+            }
+            
+            durations.append(1.5 * (sample.absorptionTime ?? defaultAbsorptionTimes.medium))
+            maxEndDate = max(maxEndDate, startDates.last!.addingTimeInterval(durations.last!))
+        }
+        
+        let lastEnd = min(maxEndDate, end ?? .distantFuture)
+        
+        // in order to in sure the calculations are precise (which is needed for the tests for ACE) we align on the start date
+        var dates = [start]
+        while dates.last! < lastEnd {
+            dates.append(dates.last!.addingTimeInterval(delta))
+        }
+        
+        var result = [LoopKit.GlucoseEffect]()
+        for date in dates {
+            var sum = 0.0
+            
+            for index in 0...samples.count - 1 {
+                sum += amounts[index] * max(0, min(1, date.timeIntervalSince(startDates[index]) / durations[index]))
+                        * insulinSensitivityScheduleApplyingOverrideHistory.value(at: startDates[index]) /  carbRatioScheduleApplyingOverrideHistory.value(at: startDates[index])
+            }
+            
+            result.append(GlucoseEffect(startDate: date, quantity: HKQuantity(unit: insulinSensitivityScheduleApplyingOverrideHistory.unit, doubleValue: sum)))
+        }
+        
+        return result
     }
     
     func getCarbsOnBoardValues(start: Date, end: Date?, effectVelocities: [GlucoseEffectVelocity]?, completion: @escaping (CarbStoreResult<[CarbValue]>) -> Void) {
