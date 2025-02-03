@@ -23,7 +23,7 @@ public struct AdaptiveCarbohydrateEffectSelectionView: View {
 
                 Divider()
 
-                Text(NSLocalizedString("Adaptive Carbohydrate Effect (ACE) is an extension to the Loop Algorithm. In standard Loop, Retrospective Correction (RC) and Carb Effects are used as part of the prediction, where the retrospective takes the historical carb effects into account. In ACE, each Loop cycle the prediction from the previous cycle is compared against using RC without  carb effects. If using RC without carb effects gave a closer prediction to the current BG, then the new prediction will use it and won't include carb effects. When Carbs on Board (COB) is 10g or less, then ACE will not be used if the prediction without carbs is greater than the usual prediction.", comment: "Description of Integral Retrospective Correction toggle."))
+                Text(NSLocalizedString("Adaptive Carbohydrate Effect (ACE) is an extension to the Loop Algorithm. In standard Loop, Retrospective Correction (RC) takes the historical carb effects into account. When using ACE, each Loop cycle the prediction from the previous cycle is compared against using RC without carb effects. If using RC without carb effects gave a closer prediction to the current BG, then it will be used instead (and past meals will have reduced carb effects as they are accounted for by RC). When Carbs on Board (COB) is 10g or less, then ACE will not be used if the prediction without carbs is greater than the usual prediction.", comment: "Description of Adaptive Carbohydrate Effect toggle."))
                     .foregroundColor(.secondary)
                 Divider()
 

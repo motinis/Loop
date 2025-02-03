@@ -1229,6 +1229,65 @@ extension LoopDataManager {
         return entries
     }
     
+    fileprivate func getAceWeightedCarbsEffect<Sample: CarbEntry>(lastGlucoseDate: Date, carbEntry: Sample, insulinCounteractionEffects: [GlucoseEffectVelocity], retrospectionInterval: TimeInterval? = nil, retrospectiveStart: Date? = nil) throws -> [GlucoseEffect]? {
+        
+        let retrospectionInterval = retrospectionInterval ?? type(of: retrospectiveCorrection).retrospectionInterval
+        let retrospectiveStart = retrospectiveStart ?? lastGlucoseDate.addingTimeInterval(-retrospectionInterval)
+        let cutoffTime = retrospectiveStart.addingTimeInterval(.hours(-0.5))
+        
+        guard carbEntry.startDate > cutoffTime else {
+            return nil
+        }
+        
+        let forwardIntervalDate = lastGlucoseDate.addingTimeInterval(retrospectionInterval)
+        let widenedWindowDate = forwardIntervalDate.addingTimeInterval(carbStore.delta)
+        
+        let carbEffect = try carbStore.glucoseEffects(
+            of: [carbEntry],
+            startingAt: retrospectiveStart,
+            endingAt: nil,
+            effectVelocities: insulinCounteractionEffects
+        )
+        
+        // simple calculation for weight which assumes a uniform carb effect (i.e., a "block" shape)
+        var weight = max(0, min(1, 1 - lastGlucoseDate.timeIntervalSince(carbEntry.startDate.addingTimeInterval(carbStore.delay)) / type(of: retrospectiveCorrection).retrospectionInterval))
+        
+        // for simplicity this is averaged with a bucketed calculation; note that if the implementation changes such that effects are aligned to the lastGlucoseDate (instead of delta on the clock), then the averaging isn't needed since the bucketed calculation would be accurate
+        let windowEffects = carbEffect.filterDateRange(retrospectiveStart, widenedWindowDate)
+        
+        if windowEffects.count > 2 {
+            var retroIntervalWeight = 0.0
+            var nextIntervalWeight = 0.0
+            var prevValue = windowEffects[0].quantity.doubleValue(for: .mgdL)
+
+            for effect in windowEffects {
+                let value = effect.quantity.doubleValue(for: .mgdL)
+                if retrospectiveStart <= effect.startDate, effect.startDate < forwardIntervalDate {
+                    retroIntervalWeight += value - prevValue
+                } else if effect.startDate < widenedWindowDate {
+                    nextIntervalWeight += value - prevValue
+                }
+                prevValue = value
+            }
+            
+            let denom = retroIntervalWeight + nextIntervalWeight
+            if denom > 0 {
+                weight = 0.5 * (weight + max(0, min(1, (nextIntervalWeight - retroIntervalWeight)/denom)))
+            }
+        }
+        
+        guard weight > 0, !carbEffect.isEmpty else {
+            return nil
+        }
+        
+        guard weight < 1 else {
+            return carbEffect
+        }
+        
+        let startValue = carbEffect[0].quantity.doubleValue(for: .mgdL)
+        return carbEffect.map{GlucoseEffect(startDate: $0.startDate, quantity: HKQuantity(unit: .mgdL, doubleValue: startValue + weight * ($0.quantity.doubleValue(for: .mgdL) - startValue)))}
+    }
+    
     /// - Throws:
     ///     - LoopError.missingDataError
     ///     - LoopError.configurationError
@@ -1272,7 +1331,6 @@ extension LoopDataManager {
         var retrospectiveGlucoseEffect = self.retrospectiveGlucoseEffect
         var effects: [[GlucoseEffect]] = []
         let aceUseNoCarbs = self.adaptiveCarbohydrateEffectNoCarbsUsed
-        let mgdL: HKUnit = .milligramsPerDeciliter
           
         let insulinCounteractionEffects = insulinCounteractionEffectsOverride ?? self.insulinCounteractionEffects
         if inputs.contains(.carbs) {
@@ -1282,59 +1340,10 @@ extension LoopDataManager {
 
             if aceUseNoCarbs {
                 // past carb effects go into the noCarbsRetrospectiveGlucoseEffect
-                // we still need to calculate future carb effects. Weights are used for those
-                // carb entries whose effects only started in the retrospective window
-                let cutoffTime = retrospectiveStart.addingTimeInterval(.hours(-0.5))
-                let forwardIntervalDate = lastGlucoseDate.addingTimeInterval(retrospectionInterval)
-                let widenedWindowDate = forwardIntervalDate.addingTimeInterval(carbStore.delta)
-                
+                // we still need to calculate future carb effects
                 let carbEntries = prepareEntriesForCarbsEffect(potentialCarbEntry, replacedCarbEntry)
                 for carbEntry in carbEntries {
-                    guard carbEntry.startDate > cutoffTime else {
-                        continue
-                    }
-                    
-                    var carbEffect = try carbStore.glucoseEffects(
-                        of: [carbEntry],
-                        startingAt: retrospectiveStart,
-                        endingAt: nil,
-                        effectVelocities: insulinCounteractionEffects
-                    )
-                    
-                    
-                    // simple calculation for weight which assumes a "block" shape to carb effect
-                    var weight = max(0, min(1, 1 - lastGlucoseDate.timeIntervalSince(carbEntry.startDate.addingTimeInterval(carbStore.delay)) / type(of: retrospectiveCorrection).retrospectionInterval))
-                    
-                    // for simplicity we average this with a bucketed calculation; note that if the implementation changes such that effects are aligned to the lastGlucoseDate (instead of delta on the clock), then the averaging isn't needed since the bucketed calculation would be accurate
-                    let windowEffects = carbEffect.filterDateRange(retrospectiveStart, widenedWindowDate)
-                    
-                    if windowEffects.count > 2 {
-                        var retroIntervalWeight = 0.0
-                        var nextIntervalWeight = 0.0
-                        var prevValue = windowEffects[0].quantity.doubleValue(for: mgdL)
-
-                        for effect in windowEffects {
-                            let value = effect.quantity.doubleValue(for: mgdL)
-                            if retrospectiveStart <= effect.startDate, effect.startDate < forwardIntervalDate {
-                                retroIntervalWeight += value - prevValue
-                            } else if effect.startDate < widenedWindowDate {
-                                nextIntervalWeight += value - prevValue
-                            }
-                            prevValue = value
-                        }
-                        
-                        let denom = retroIntervalWeight + nextIntervalWeight
-                        if denom > 0 {
-                            weight = 0.5 * (weight + max(0, min(1, (nextIntervalWeight - retroIntervalWeight)/denom)))
-                        }
-                    }
-                    
-                    if weight > 0, !carbEffect.isEmpty {
-                        if weight < 1 {
-                            let startValue = carbEffect[0].quantity.doubleValue(for: mgdL)
-                            carbEffect = carbEffect.map{GlucoseEffect(startDate: $0.startDate, quantity: HKQuantity(unit: mgdL, doubleValue: startValue + weight * ($0.quantity.doubleValue(for: mgdL) - startValue)))}
-                        }
-                        
+                    if let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: lastGlucoseDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects, retrospectionInterval: retrospectionInterval, retrospectiveStart: retrospectiveStart) {
                         effects.append(carbEffect)
                     }
                 }
@@ -1400,7 +1409,7 @@ extension LoopDataManager {
         }
 
         if inputs.contains(.momentum), let momentumEffect = self.glucoseMomentumEffect {
-            if !includingPositiveVelocityAndRC, let netMomentum = momentumEffect.netEffect(), netMomentum.quantity.doubleValue(for: mgdL) > 0 {
+            if !includingPositiveVelocityAndRC, let netMomentum = momentumEffect.netEffect(), netMomentum.quantity.doubleValue(for: .mgdL) > 0 {
                 momentum = []
             } else {
                 momentum = momentumEffect
@@ -1408,7 +1417,7 @@ extension LoopDataManager {
         }
 
         if inputs.contains(.retrospection) {
-            if !includingPositiveVelocityAndRC, let netRC = retrospectiveGlucoseEffect.netEffect(), netRC.quantity.doubleValue(for: mgdL) > 0 {
+            if !includingPositiveVelocityAndRC, let netRC = retrospectiveGlucoseEffect.netEffect(), netRC.quantity.doubleValue(for: .mgdL) > 0 {
                 // positive RC is turned off
             } else {
                 effects.append(retrospectiveGlucoseEffect)
@@ -1636,6 +1645,16 @@ extension LoopDataManager {
             volumeRounder: volumeRounder
         )
     }
+    
+    fileprivate func getDeltaCarbEffect(carbEffect: [GlucoseEffect], startDate: Date, endDate: Date) -> Double {
+        let filteredCarbEffect = carbEffect.filter{startDate <= $0.startDate && $0.startDate <= endDate}
+        
+        guard filteredCarbEffect.count > 1 else {
+            return 0
+        }
+
+        return filteredCarbEffect.last!.quantity.doubleValue(for: .mgdL) - filteredCarbEffect.first!.quantity.doubleValue(for: .mgdL)
+    }
 
     /// Generates a correction effect based on how large the discrepancy is between the current glucose and its model predicted value.
     ///
@@ -1731,20 +1750,23 @@ extension LoopDataManager {
         // note that retrospectiveGlucoseEffects and carbEffects are aligned to 5 minutes on the clock (e.g. 00:05 00:10, etc.)
         let startDate = prevRetroEffect[0].startDate
         let endDate = prevRetroEffect[1].startDate
-        let filteredCarbEffects = carbEffects.filter{startDate <= $0.startDate && $0.startDate <= endDate}
         
-        let unit: HKUnit = .milligramsPerDeciliter
+        let deltaCarbEffect = getDeltaCarbEffect(carbEffect: carbEffects, startDate: startDate, endDate: endDate)
         
-        let deltaCarbEffect: Double
-        if filteredCarbEffects.count < 2 {
-            deltaCarbEffect = 0
-        } else {
-            deltaCarbEffect = filteredCarbEffects.last!.quantity.doubleValue(for: unit) - filteredCarbEffects.first!.quantity.doubleValue(for: unit)
+        var sumDeltaWeightedCarbEffect = 0.0
+        if let recentCarbEntries = recentCarbEntries {
+            for carbEntry in recentCarbEntries {
+                if let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: prevGlucose.startDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects) {
+                    
+                    sumDeltaWeightedCarbEffect += getDeltaCarbEffect(carbEffect: carbEffect, startDate: startDate, endDate: endDate)
+                }
+            }
         }
+        
 
-        let value = glucose.quantity.doubleValue(for: unit)
-        let carbsPrediction = prevRetroEffect[1].quantity.doubleValue(for: unit) + deltaCarbEffect
-        let noCarbsPrediction = prevNoCarbsRetroEffect[1].quantity.doubleValue(for: unit)
+        let value = glucose.quantity.doubleValue(for: .mgdL)
+        let carbsPrediction = prevRetroEffect[1].quantity.doubleValue(for: .mgdL) + deltaCarbEffect
+        let noCarbsPrediction = prevNoCarbsRetroEffect[1].quantity.doubleValue(for: .mgdL) + sumDeltaWeightedCarbEffect
 
         aceUseNoCarbs = abs(noCarbsPrediction - value) < abs(carbsPrediction - value) && (cob > 10 || noCarbsPrediction < carbsPrediction)
         
@@ -2387,21 +2409,21 @@ extension LoopDataManager {
                 "insulinEffect: [",
                 "* GlucoseEffect(start, mg/dL)",
                 (manager.insulinEffect ?? []).reduce(into: "", { (entries, entry) in
-                    entries.append("* \(entry.startDate), \(entry.quantity.doubleValue(for: .milligramsPerDeciliter))\n")
+                    entries.append("* \(entry.startDate), \(entry.quantity.doubleValue(for: .mgdL))\n")
                 }),
                 "]",
 
                 "carbEffect: [",
                 "* GlucoseEffect(start, mg/dL)",
                 (manager.carbEffect ?? []).reduce(into: "", { (entries, entry) in
-                    entries.append("* \(entry.startDate), \(entry.quantity.doubleValue(for: .milligramsPerDeciliter))\n")
+                    entries.append("* \(entry.startDate), \(entry.quantity.doubleValue(for: .mgdL))\n")
                 }),
                 "]",
 
                 "predictedGlucose: [",
                 "* PredictedGlucoseValue(start, mg/dL)",
                 (state.predictedGlucoseIncludingPendingInsulin ?? []).reduce(into: "", { (entries, entry) in
-                    entries.append("* \(entry.startDate), \(entry.quantity.doubleValue(for: .milligramsPerDeciliter))\n")
+                    entries.append("* \(entry.startDate), \(entry.quantity.doubleValue(for: .mgdL))\n")
                 }),
                 "]",
 
@@ -2410,14 +2432,14 @@ extension LoopDataManager {
                 "retrospectiveGlucoseDiscrepancies: [",
                 "* GlucoseEffect(start, mg/dL)",
                 (manager.retrospectiveGlucoseDiscrepancies ?? []).reduce(into: "", { (entries, entry) in
-                    entries.append("* \(entry.startDate), \(entry.quantity.doubleValue(for: .milligramsPerDeciliter))\n")
+                    entries.append("* \(entry.startDate), \(entry.quantity.doubleValue(for: .mgdL))\n")
                 }),
                 "]",
 
                 "retrospectiveGlucoseDiscrepanciesSummed: [",
                 "* GlucoseChange(start, end, mg/dL)",
                 (manager.retrospectiveGlucoseDiscrepanciesSummed ?? []).reduce(into: "", { (entries, entry) in
-                    entries.append("* \(entry.startDate), \(entry.endDate), \(entry.quantity.doubleValue(for: .milligramsPerDeciliter))\n")
+                    entries.append("* \(entry.startDate), \(entry.endDate), \(entry.quantity.doubleValue(for: .mgdL))\n")
                 }),
                 "]",
 
