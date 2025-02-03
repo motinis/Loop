@@ -265,7 +265,9 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         var subtitleText = input.localizedDescription(forGlucoseUnit: glucoseChart.glucoseUnit) ?? ""
         
         if input == .carbs, adaptiveCarbohydrateEffectNoCarbsUsed {
-            subtitleText = NSLocalizedString("Adaptive Carbohydrate Effect: past meals have reduced effects", comment: "Adaptive Carbohydrate Effect - carb effect weight description")
+            let aceText = NSLocalizedString("Adaptive: past meals have reduced effects", comment: "Adaptive Carbohydrate Effect - carb effect weight description")
+            
+            subtitleText = String(format: "%@\n%@", subtitleText, aceText)
         }
 
         if input == .retrospection,
@@ -284,6 +286,13 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             )
             let isIntegralRetrospectiveCorrectionEnabled = UserDefaults.standard.integralRetrospectiveCorrectionEnabled
             
+            let aceNoCarbsUsed: String
+            if adaptiveCarbohydrateEffectNoCarbsUsed {
+                aceNoCarbsUsed = NSLocalizedString("Adaptive Carbohydrate Effect: carbs excluded\n", comment: "Adaptiave Carbohydrate Effect - RC explanation")
+            } else {
+                aceNoCarbsUsed = ""
+            }
+            
             if isIntegralRetrospectiveCorrectionEnabled {
                 var integralEffectDisplay = "?"
                 var totalEffectDisplay = "?"
@@ -297,15 +306,9 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
                     format: NSLocalizedString("prediction-description-integral-retrospective-correction", comment: "Format string describing integral retrospective correction. (1: Integral glucose effect)(2: Total glucose effect)"),
                     integralEffectDisplay, totalEffectDisplay
                 )
-                subtitleText = String(format: "%@\n%@", retro, integralRetro)
+                subtitleText = String(format: "%@%@\n%@", aceNoCarbsUsed, retro, integralRetro)
             } else {
-                subtitleText = String(format: "%@\n%@", subtitleText, retro)
-            }
-            
-            if adaptiveCarbohydrateEffectNoCarbsUsed {
-                let aceNoCarbsUsed = NSLocalizedString("Adaptive Carbohydrate Effect: carb effects excluded", comment: "Adaptiave Carbohydrate Effect - RC explanation")
-                
-                subtitleText = String(format: "%@\n%@", aceNoCarbsUsed, subtitleText)
+                subtitleText = String(format: "%@%@\n%@", aceNoCarbsUsed, subtitleText, retro)
             }
         }
 
