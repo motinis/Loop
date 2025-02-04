@@ -1233,24 +1233,29 @@ extension LoopDataManager {
         
         let retrospectionInterval = retrospectionInterval ?? type(of: retrospectiveCorrection).retrospectionInterval
         let retrospectiveStart = retrospectiveStart ?? lastGlucoseDate.addingTimeInterval(-retrospectionInterval)
-        let cutoffTime = retrospectiveStart.addingTimeInterval(.hours(-0.5))
-        
-        guard carbEntry.startDate > cutoffTime else {
-            return nil
-        }
         
         let forwardIntervalDate = lastGlucoseDate.addingTimeInterval(retrospectionInterval)
         let widenedWindowDate = forwardIntervalDate.addingTimeInterval(carbStore.delta)
         
-        let carbEffect = try carbStore.glucoseEffects(
+        var carbEffect = try carbStore.glucoseEffects(
             of: [carbEntry],
             startingAt: retrospectiveStart,
             endingAt: nil,
             effectVelocities: insulinCounteractionEffects
         )
         
+        guard !carbEffect.isEmpty else {
+            return nil
+        }
+        
         // simple calculation for weight which assumes a uniform carb effect (i.e., a "block" shape)
-        var weight = max(0, min(1, 1 - lastGlucoseDate.timeIntervalSince(carbEntry.startDate.addingTimeInterval(carbStore.delay)) / type(of: retrospectiveCorrection).retrospectionInterval))
+        let startOfCarbEffect = carbEntry.startDate.addingTimeInterval(carbStore.delay)
+        
+        guard startOfCarbEffect < lastGlucoseDate else {
+            return carbEffect
+        }
+        
+        var weight = max(0, min(1, 1 - lastGlucoseDate.timeIntervalSince(startOfCarbEffect) / type(of: retrospectiveCorrection).retrospectionInterval))
         
         // for simplicity this is averaged with a bucketed calculation; note that if the implementation changes such that effects are aligned to the lastGlucoseDate (instead of delta on the clock), then the averaging isn't needed since the bucketed calculation would be accurate
         let windowEffects = carbEffect.filterDateRange(retrospectiveStart, widenedWindowDate)
@@ -1262,30 +1267,40 @@ extension LoopDataManager {
 
             for effect in windowEffects {
                 let value = effect.quantity.doubleValue(for: .mgdL)
-                if retrospectiveStart <= effect.startDate, effect.startDate < forwardIntervalDate {
-                    retroIntervalWeight += value - prevValue
-                } else if effect.startDate < widenedWindowDate {
-                    nextIntervalWeight += value - prevValue
+                if retrospectiveStart < effect.startDate {
+                    if effect.startDate <= lastGlucoseDate {
+                        retroIntervalWeight += value - prevValue
+                    } else if effect.startDate <= forwardIntervalDate {
+                        nextIntervalWeight += value - prevValue
+                    }
                 }
                 prevValue = value
             }
             
-            let denom = retroIntervalWeight + nextIntervalWeight
-            if denom > 0 {
-                weight = 0.5 * (weight + max(0, min(1, (nextIntervalWeight - retroIntervalWeight)/denom)))
-            }
-        }
-        
-        guard weight > 0, !carbEffect.isEmpty else {
-            return nil
+            let binWeight = nextIntervalWeight == 0 ? 0.0 : 1 - max(0, min(1.0, retroIntervalWeight / nextIntervalWeight))
+            
+            weight = 0.5 * (weight + binWeight)            
         }
         
         guard weight < 1 else {
             return carbEffect
         }
         
-        let startValue = carbEffect[0].quantity.doubleValue(for: .mgdL)
-        return carbEffect.map{GlucoseEffect(startDate: $0.startDate, quantity: HKQuantity(unit: .mgdL, doubleValue: startValue + weight * ($0.quantity.doubleValue(for: .mgdL) - startValue)))}
+        let weightSlope = (1 - weight) * carbStore.delta / LoopMath.retrospectiveCorrectionEffectDuration
+        var prevValue = 0.0
+        for (index, effect) in carbEffect.enumerated() {
+            if index == 0 || effect.startDate <= lastGlucoseDate {
+                prevValue = effect.quantity.doubleValue(for: .mgdL)
+                continue
+            }
+            let value = effect.quantity.doubleValue(for: .mgdL)
+            let delta = value - prevValue
+            carbEffect[index] = GlucoseEffect(startDate: effect.startDate, quantity: HKQuantity(unit: .mgdL, doubleValue: carbEffect[index - 1].quantity.doubleValue(for: .mgdL) + weight * delta))
+            
+            weight = min(1.0, weight + weightSlope)
+            prevValue = value
+        }
+        return carbEffect
     }
     
     /// - Throws:
@@ -1343,12 +1358,11 @@ extension LoopDataManager {
                 // we still need to calculate future carb effects
                 let carbEntries = prepareEntriesForCarbsEffect(potentialCarbEntry, replacedCarbEntry)
                 for carbEntry in carbEntries {
-                    if let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: lastGlucoseDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects, retrospectionInterval: retrospectionInterval, retrospectiveStart: retrospectiveStart) {
+                    if let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: lastGlucoseDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects, retrospectionInterval: retrospectionInterval, retrospectiveStart: retrospectiveStart), carbEffect.count > 1 {
                         effects.append(carbEffect)
                     }
                 }
-            }
-            else if let potentialCarbEntry = potentialCarbEntry {
+            } else if let potentialCarbEntry = potentialCarbEntry {
                 if potentialCarbEntry.startDate > lastGlucoseDate || recentCarbEntries?.isEmpty != false, replacedCarbEntry == nil {
                     // The potential carb effect is independent and can be summed with the existing effect
                     if let carbEffect = carbEffectOverride ?? self.carbEffect {

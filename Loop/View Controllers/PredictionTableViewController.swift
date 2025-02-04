@@ -265,7 +265,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         var subtitleText = input.localizedDescription(forGlucoseUnit: glucoseChart.glucoseUnit) ?? ""
         
         if input == .carbs, adaptiveCarbohydrateEffectNoCarbsUsed {
-            let aceText = NSLocalizedString("Adaptive: past meals have reduced effects", comment: "Adaptive Carbohydrate Effect - carb effect weight description")
+            let aceText = NSLocalizedString("Adaptive: past meals have reduced effects for the next 60 minutes", comment: "Adaptive Carbohydrate Effect - carb effect weight description")
             
             subtitleText = String(format: "%@\n%@", subtitleText, aceText)
         }
@@ -288,7 +288,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             
             let aceNoCarbsUsed: String
             if adaptiveCarbohydrateEffectNoCarbsUsed {
-                aceNoCarbsUsed = NSLocalizedString("Adaptive Carbohydrate Effect: carbs excluded\n", comment: "Adaptiave Carbohydrate Effect - RC explanation")
+                aceNoCarbsUsed = NSLocalizedString("Adaptive Carbohydrate Effect: correcting for carbs\n", comment: "Adaptiave Carbohydrate Effect - RC explanation")
             } else {
                 aceNoCarbsUsed = ""
             }

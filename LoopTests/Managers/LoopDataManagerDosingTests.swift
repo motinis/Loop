@@ -242,13 +242,13 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         let latestGlucoseDate = currentDate.addingTimeInterval(.minutes(5))
 
         let minutesDiff = -45...5
-        var deltaCarbEffects = [Double?]()
+        var predictions = [[Double]]()
         
         let updateGroup = DispatchGroup()
         updateGroup.enter()
         self.loopDataManager.getLoopState { _, _ in
             // this establishes the first prediction - after which we want to do our next prediction which should be for NoCarbs
-            glucoseStore.storedGlucose?.append(StoredGlucoseSample(startDate: latestGlucoseDate, quantity: HKQuantity(unit: .milligramsPerDeciliter, doubleValue: 182)))
+            glucoseStore.storedGlucose?.append(StoredGlucoseSample(startDate: latestGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 182)))
             NotificationCenter.default.post(name: GlucoseStore.glucoseSamplesDidChange, object: glucoseStore)
 
             self.loopDataManager.getLoopState { _, state in
@@ -257,11 +257,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
                         let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 10), startDate: latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))), foodType: nil, absorptionTime: .hours(3))
                         let prediction = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: carbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
                         
-                        if !prediction.isEmpty {
-                            deltaCarbEffects.append(prediction.last!.quantity.doubleValue(for: .milligramsPerDeciliter) - prediction.first!.quantity.doubleValue(for: .milligramsPerDeciliter))
-                        } else {
-                            deltaCarbEffects.append(nil)
-                        }
+                        predictions.append(prediction.map{$0.quantity.doubleValue(for: .mgdL)})
                     } catch {
                     }
                 }
@@ -275,20 +271,41 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
 
         var unweightedDiffs = [Double]()
         for (index, diff) in minutesDiff.enumerated() {
-            let delta = deltaCarbEffects[index]
-            XCTAssertNotNil(delta)
-            if diff <= -40 {
-                XCTAssertEqual(0.0, delta!)
+            let weight = max(0, min(1.0, 1.0 + (Double(diff) + 10)/30))
+            let carbEffectStart = latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))).addingTimeInterval(carbStore.delay)
+            let absorbedTimeBeforeStart = latestGlucoseDate.addingTimeInterval(.minutes(weight == 0 ? 5 : 0)).timeIntervalSince(carbEffectStart)
+            let weightAdjustment = 1 - max(0, min(1, absorbedTimeBeforeStart / totalAbsorptionTime))
+            
+            let prediction = predictions[index]
+            var prevValue = prediction[0]
+            
+            if weight == 1.0 {
+                unweightedDiffs.append( (prediction.last! - prediction.first!) / weightAdjustment)
             } else {
-                XCTAssertNotEqual(0.0, delta!)
-                let weight = min(1.0, 1.0 + (Double(diff) + 10)/30)
-                let carbEffectStart = latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))).addingTimeInterval(carbStore.delay)
-                let absorbedTimeBeforeStart = latestGlucoseDate.timeIntervalSince(carbEffectStart)
-                let weightAdjustment = 1 - max(0, min(1, absorbedTimeBeforeStart / totalAbsorptionTime))
+                var sumDelta = 0.0
+                var deltaWeight = weight
+                let deltaSlope = (1 - weight) * 5.0/60 // 5-minute intervals, and retrospective is over 1 hour
                 
-                unweightedDiffs.append(delta! / (weight * weightAdjustment))
+                for (i, value) in prediction.enumerated() {
+                    if i == 0 {
+                        continue
+                    }
+                    let delta = value - prevValue
+                    XCTAssertGreaterThanOrEqual(delta, 0.0)
+                    if i == 1, deltaWeight == 0 {
+                        XCTAssertEqual(0.0, delta)
+                    } else {
+                        sumDelta += delta / deltaWeight
+                    }
+                                        
+                    deltaWeight = min(1.0, deltaWeight + deltaSlope)
+                    prevValue = value
+                }
+                
+                unweightedDiffs.append(sumDelta / weightAdjustment)
             }
         }
+        
         XCTAssertEqual(unweightedDiffs.min()!, unweightedDiffs.max()!, accuracy: 1E-9)
     }
     
