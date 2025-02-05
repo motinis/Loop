@@ -266,10 +266,9 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         
         let aceFormat = NSLocalizedString("Adaptive Carbohydrate Effect: %1$@%%", comment: "Adaptive Carbohydrate Effect - carb weight description")
         
-        if input == .carbs, adaptiveCarbohydrateEffectBaseWeight < 1 {
+        if input == .carbs, 100 * adaptiveCarbohydrateEffectBaseWeight < 99.5 {
             let formatter = NumberFormatter()
             formatter.minimumIntegerDigits = 1
-            formatter.maximumFractionDigits = 0
             formatter.maximumSignificantDigits = 2
             formatter.roundingMode = .halfUp
                         
@@ -293,12 +292,10 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             )
             let isIntegralRetrospectiveCorrectionEnabled = UserDefaults.standard.integralRetrospectiveCorrectionEnabled
             
-            let aceText: String
-            if adaptiveCarbohydrateEffectBaseWeight > 0 {
+            var aceText: String
+            if 100 * (1 - adaptiveCarbohydrateEffectBaseWeight) >= 0.5 {
                 let formatter = NumberFormatter()
                 formatter.minimumIntegerDigits = 1
-                formatter.maximumFractionDigits = 0
-                formatter.maximumSignificantDigits = 3
                 formatter.roundingMode = .halfDown
                 
                 aceText = String(format: aceFormat, formatter.string(from: 100 * (1 - adaptiveCarbohydrateEffectBaseWeight)) ?? "?")
@@ -319,9 +316,17 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
                     format: NSLocalizedString("prediction-description-integral-retrospective-correction", comment: "Format string describing integral retrospective correction. (1: Integral glucose effect)(2: Total glucose effect)"),
                     integralEffectDisplay, totalEffectDisplay
                 )
-                subtitleText = String(format: "%@%@\n%@", aceText, retro, integralRetro)
+                subtitleText = String(format: "%@\n%@", retro, integralRetro)
+                if !aceText.isEmpty {
+                    subtitleText = String(format: "%@\n%@", aceText, subtitleText)
+                }
             } else {
-                subtitleText = String(format: "%@%@\n%@", aceText, subtitleText, retro)
+                if !aceText.isEmpty {
+                    subtitleText = String(format: "%@\n%@\n%@", subtitleText, aceText, retro)
+                } else {
+                    subtitleText = String(format: "%@\n%@", subtitleText, retro)
+                }
+                
             }
         }
 
