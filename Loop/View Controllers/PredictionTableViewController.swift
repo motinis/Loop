@@ -72,7 +72,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
 
     private var totalRetrospectiveCorrection: HKQuantity?
     
-    private var adaptiveCarbohydrateEffectNoCarbsUsed = false
+    private var adaptiveCarbohydrateEffectBaseWeight = 1.0
 
     private var refreshContext = RefreshContext.all
 
@@ -132,7 +132,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         _ = self.refreshContext.remove(.status)
         reloadGroup.enter()
         deviceManager.loopManager.getLoopState { (manager, state) in
-            self.adaptiveCarbohydrateEffectNoCarbsUsed = state.adaptiveCarbohydrateEffectNoCarbsUsed
+            self.adaptiveCarbohydrateEffectBaseWeight = state.adaptiveCarbohydrateEffectBaseWeight
             self.retrospectiveGlucoseDiscrepancies = state.retrospectiveGlucoseDiscrepancies
             totalRetrospectiveCorrection = state.totalRetrospectiveCorrection
             self.glucoseChart.setPredictedGlucoseValues(state.predictedGlucoseIncludingPendingInsulin ?? [])
@@ -264,9 +264,16 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
 
         var subtitleText = input.localizedDescription(forGlucoseUnit: glucoseChart.glucoseUnit) ?? ""
         
-        if input == .carbs, adaptiveCarbohydrateEffectNoCarbsUsed {
-            let aceText = NSLocalizedString("Adaptive: past meals have reduced effects for the next 60 minutes", comment: "Adaptive Carbohydrate Effect - carb effect weight description")
-            
+        let aceFormat = NSLocalizedString("Adaptive Carbohydrate Effect: %1$@%%", comment: "Adaptive Carbohydrate Effect - carb weight description")
+        
+        if input == .carbs, adaptiveCarbohydrateEffectBaseWeight < 1 {
+            let formatter = NumberFormatter()
+            formatter.minimumIntegerDigits = 1
+            formatter.maximumFractionDigits = 0
+            formatter.maximumSignificantDigits = 2
+            formatter.roundingMode = .halfUp
+                        
+            let aceText = String(format: aceFormat, formatter.string(from: 100 * adaptiveCarbohydrateEffectBaseWeight) ?? "?")
             subtitleText = String(format: "%@\n%@", subtitleText, aceText)
         }
 
@@ -286,11 +293,17 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             )
             let isIntegralRetrospectiveCorrectionEnabled = UserDefaults.standard.integralRetrospectiveCorrectionEnabled
             
-            let aceNoCarbsUsed: String
-            if adaptiveCarbohydrateEffectNoCarbsUsed {
-                aceNoCarbsUsed = NSLocalizedString("Adaptive Carbohydrate Effect: correcting for carbs\n", comment: "Adaptiave Carbohydrate Effect - RC explanation")
+            let aceText: String
+            if adaptiveCarbohydrateEffectBaseWeight > 0 {
+                let formatter = NumberFormatter()
+                formatter.minimumIntegerDigits = 1
+                formatter.maximumFractionDigits = 0
+                formatter.maximumSignificantDigits = 3
+                formatter.roundingMode = .halfDown
+                
+                aceText = String(format: aceFormat, formatter.string(from: 100 * (1 - adaptiveCarbohydrateEffectBaseWeight)) ?? "?")
             } else {
-                aceNoCarbsUsed = ""
+                aceText = ""
             }
             
             if isIntegralRetrospectiveCorrectionEnabled {
@@ -306,9 +319,9 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
                     format: NSLocalizedString("prediction-description-integral-retrospective-correction", comment: "Format string describing integral retrospective correction. (1: Integral glucose effect)(2: Total glucose effect)"),
                     integralEffectDisplay, totalEffectDisplay
                 )
-                subtitleText = String(format: "%@%@\n%@", aceNoCarbsUsed, retro, integralRetro)
+                subtitleText = String(format: "%@%@\n%@", aceText, retro, integralRetro)
             } else {
-                subtitleText = String(format: "%@%@\n%@", aceNoCarbsUsed, subtitleText, retro)
+                subtitleText = String(format: "%@%@\n%@", aceText, subtitleText, retro)
             }
         }
 
