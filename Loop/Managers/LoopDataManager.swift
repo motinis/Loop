@@ -1213,7 +1213,7 @@ extension LoopDataManager {
         return pendingTempBasalInsulin + pendingBolusAmount
     }
     
-    fileprivate func getAceWeightedCarbsEffect<Sample: CarbEntry>(lastGlucoseDate: Date, carbEntry: Sample, insulinCounteractionEffects: [GlucoseEffectVelocity], baseWeight: Double, retrospectionInterval: TimeInterval? = nil, retrospectiveStart: Date? = nil) throws -> [GlucoseEffect] {
+    fileprivate func getAceWeightedCarbsEffect(lastGlucoseDate: Date, carbEntry: NewCarbEntry, insulinCounteractionEffects: [GlucoseEffectVelocity], baseWeight: Double, retrospectionInterval: TimeInterval? = nil, retrospectiveStart: Date? = nil) throws -> [GlucoseEffect] {
         
         let retrospectionInterval = retrospectionInterval ?? type(of: retrospectiveCorrection).retrospectionInterval
         let retrospectiveStart = retrospectiveStart ?? lastGlucoseDate.addingTimeInterval(-retrospectionInterval)
@@ -1289,6 +1289,10 @@ extension LoopDataManager {
         return carbEffect
     }
     
+    fileprivate func convertToNewCarbEntries(_ recentEntries: [StoredCarbEntry]) -> [NewCarbEntry] {
+        return recentEntries.map { NewCarbEntry(quantity: $0.quantity, startDate: $0.startDate, foodType: $0.foodType, absorptionTime: $0.absorptionTime) }
+    }
+    
     /// - Throws:
     ///     - LoopError.missingDataError
     ///     - LoopError.configurationError
@@ -1361,7 +1365,7 @@ extension LoopDataManager {
                     }
 
                     // If the entry is in the past or an entry is replaced, DCA and RC effects must be recomputed
-                    var entries = recentEntries.map { NewCarbEntry(quantity: $0.quantity, startDate: $0.startDate, foodType: nil, absorptionTime: $0.absorptionTime) }
+                    var entries = convertToNewCarbEntries(recentEntries)
                     entries.append(potentialCarbEntry)
                     entries.sort(by: { $0.startDate > $1.startDate })
                     
@@ -1776,13 +1780,12 @@ extension LoopDataManager {
         
         let deltaCarbEffect = getDeltaCarbEffect(carbEffect: carbEffects, startDate: startDate, endDate: endDate)
         
+        let recentCarbEntries = convertToNewCarbEntries(recentCarbEntries ?? [])
         var sumDeltaWeightedCarbEffect = 0.0
-        if let recentCarbEntries = recentCarbEntries {
-            for carbEntry in recentCarbEntries {
-                let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: prevGlucose.startDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects, baseWeight: 0)
-                    
-                sumDeltaWeightedCarbEffect += getDeltaCarbEffect(carbEffect: carbEffect, startDate: startDate, endDate: endDate)
-            }
+        for carbEntry in recentCarbEntries {
+            let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: prevGlucose.startDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects, baseWeight: 0)
+                
+            sumDeltaWeightedCarbEffect += getDeltaCarbEffect(carbEffect: carbEffect, startDate: startDate, endDate: endDate)
         }
         
 
@@ -1803,13 +1806,11 @@ extension LoopDataManager {
             return
         }
         
-        if let recentCarbEntries = recentCarbEntries {
-            for carbEntry in recentCarbEntries {
-                let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: glucose.startDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects, baseWeight: aceCarbsBaseWeight)
-                
-                if carbEffect.count > 1 {
-                    aceBaseWeightedCarbEffects.append(carbEffect)
-                }
+        for carbEntry in recentCarbEntries {
+            let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: glucose.startDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects, baseWeight: aceCarbsBaseWeight)
+            
+            if carbEffect.count > 1 {
+                aceBaseWeightedCarbEffects.append(carbEffect)
             }
         }
         
