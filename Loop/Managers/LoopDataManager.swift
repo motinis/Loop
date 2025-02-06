@@ -1805,7 +1805,7 @@ extension LoopDataManager {
         
         if let recentCarbEntries = recentCarbEntries {
             for carbEntry in recentCarbEntries {
-                let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: prevGlucose.startDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects, baseWeight: aceCarbsBaseWeight)
+                let carbEffect = try getAceWeightedCarbsEffect(lastGlucoseDate: glucose.startDate, carbEntry: carbEntry, insulinCounteractionEffects: insulinCounteractionEffects, baseWeight: aceCarbsBaseWeight)
                 
                 if carbEffect.count > 1 {
                     aceBaseWeightedCarbEffects.append(carbEffect)
