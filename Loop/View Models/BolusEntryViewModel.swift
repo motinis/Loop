@@ -58,6 +58,8 @@ protocol BolusEntryViewModelDelegate: AnyObject {
 
 @MainActor
 final class BolusEntryViewModel: ObservableObject {
+    private let preferences: PreferencesProvider
+
     enum Alert: Int {
         case recommendationChanged
         case maxBolusExceeded
@@ -116,17 +118,17 @@ final class BolusEntryViewModel: ObservableObject {
     let selectedCarbAbsorptionTimeEmoji: String?
 
     @Published var carbBolus: HKQuantity?
-    @Published var carbBolusIncluded = true
+    @Published var carbBolusIncluded : Bool
     var carbBolusAmount: Double? {
         carbBolus?.doubleValue(for: .internationalUnit())
     }
     @Published var cobCorrectionBolus: HKQuantity?
-    @Published var cobCorrectionBolusIncluded = true
+    @Published var cobCorrectionBolusIncluded : Bool
     var cobCorrectionBolusAmount: Double? {
         cobCorrectionBolus?.doubleValue(for: .internationalUnit())
     }
     @Published var bgCorrectionBolus: HKQuantity?
-    @Published var bgCorrectionBolusIncluded = true
+    @Published var bgCorrectionBolusIncluded : Bool
     var bgCorrectionBolusAmount: Double? {
         bgCorrectionBolus?.doubleValue(for: .internationalUnit())
     }
@@ -203,9 +205,11 @@ final class BolusEntryViewModel: ObservableObject {
         originalCarbEntry: StoredCarbEntry? = nil,
         potentialCarbEntry: NewCarbEntry? = nil,
         selectedCarbAbsorptionTimeEmoji: String? = nil,
-        isManualGlucoseEntryEnabled: Bool = false
+        isManualGlucoseEntryEnabled: Bool = false,
+        preferences: PreferencesProvider = Preferences.shared
     ) {
         self.delegate = delegate
+        self.preferences = preferences
         self.now = now
         self.screenWidth = screenWidth
         self.debounceIntervalMilliseconds = debounceIntervalMilliseconds
@@ -226,6 +230,10 @@ final class BolusEntryViewModel: ObservableObject {
         self.chartDateInterval = DateInterval(start: Date(timeInterval: .hours(-1), since: now()), duration: .hours(7))
         
         self.dosingDecision.originalCarbEntry = originalCarbEntry
+
+        self.carbBolusIncluded = !preferences.isCarbEntryExcluded
+        self.cobCorrectionBolusIncluded = !preferences.isCobCorrectionExcluded
+        self.bgCorrectionBolusIncluded = !preferences.isBgCorrectionExcluded
 
         self.updateSettings()
     }
@@ -771,9 +779,6 @@ final class BolusEntryViewModel: ObservableObject {
         do {
             recommendation = try recommendationSupplier()
             
-            bgCorrectionBolusIncluded = self.bgCorrectionBolusIncluded
-            cobCorrectionBolusIncluded = self.cobCorrectionBolusIncluded
-
             if let recommendation = recommendation {
                 var totalRecommendation = 0.0
                                 
@@ -785,27 +790,30 @@ final class BolusEntryViewModel: ObservableObject {
                 } else {
                     carbBolus = nil
                 }
-                
-                if potentialCarbEntry != nil, UserDefaults.standard.carbBolusCarbEntryExcluded || UserDefaults.standard.carbBolusCobCorrectionExcluded || UserDefaults.standard.carbBolusBgCorrectionExcluded {
 
+                if potentialCarbEntry != nil,
+                    !carbBolusIncluded ||
+                    !cobCorrectionBolusIncluded ||
+                    !bgCorrectionBolusIncluded
+                {
                     var exclusionsAmount = -(recommendation.missingAmount ?? 0.0)
-                    
-                    if UserDefaults.standard.carbBolusCarbEntryExcluded {
+
+                    if !carbBolusIncluded {
                         exclusionsAmount += breakdown?.carbsAmount ?? 0.0
                     }
-                    if UserDefaults.standard.carbBolusCobCorrectionExcluded {
+                    if !cobCorrectionBolusIncluded {
                         exclusionsAmount += breakdown?.cobCorrectionAmount ?? 0.0
                     }
-                    if UserDefaults.standard.carbBolusBgCorrectionExcluded {
+                    if !bgCorrectionBolusIncluded {
                         exclusionsAmount += breakdown?.bgCorrectionAmount ?? 0.0
                     }
-                    
+
                     if exclusionsAmount >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY {
                         exclusionsBolus = HKQuantity(unit: .internationalUnit(), doubleValue: exclusionsAmount)
                         totalRecommendation -= exclusionsBolusIncluded ? exclusionsAmount : 0
                     }
                 }
-                
+
                 if let cobCorrectionAmount = breakdown?.cobCorrectionAmount, abs(cobCorrectionAmount) >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY {
                     cobCorrectionBolus = HKQuantity(unit: .internationalUnit(), doubleValue: cobCorrectionAmount)
                     totalRecommendation += cobCorrectionBolusIncluded ?  cobCorrectionAmount : 0
@@ -1052,12 +1060,12 @@ extension BolusEntryViewModel.Alert: Identifiable {
 
 // MARK: Helpers
 extension BolusEntryViewModel {
-    
+
     var isGlucoseDataStale: Bool {
         guard let latestGlucoseDataDate = delegate?.mostRecentGlucoseDataDate else { return true }
         return now().timeIntervalSince(latestGlucoseDataDate) > LoopCoreConstants.inputDataRecencyInterval
     }
-    
+
     var isPumpDataStale: Bool {
         guard let latestPumpDataDate = delegate?.mostRecentPumpDataDate else { return true }
         return now().timeIntervalSince(latestPumpDataDate) > LoopCoreConstants.inputDataRecencyInterval
@@ -1066,7 +1074,7 @@ extension BolusEntryViewModel {
     var isManualGlucosePromptVisible: Bool {
         activeNotice == .staleGlucoseData && !isManualGlucoseEntryEnabled
     }
-    
+
     var isNoticeVisible: Bool {
         if activeNotice == nil {
             return false
@@ -1076,7 +1084,7 @@ extension BolusEntryViewModel {
             return !isManualGlucoseEntryEnabled
         }
     }
-    
+
     private var hasBolusEntryReadyToDeliver: Bool {
         enteredBolus.doubleValue(for: .internationalUnit()) != 0
     }
@@ -1091,14 +1099,14 @@ extension BolusEntryViewModel {
         if hasBolusEntryReadyToDeliver { return .actionButton }
         return .manualGlucoseEntry
     }
-    
+
     enum ActionButtonAction {
         case saveWithoutBolusing
         case saveAndDeliver
         case enterBolus
         case deliver
     }
-    
+
     var actionButtonAction: ActionButtonAction {
         switch (hasDataToSave, hasBolusEntryReadyToDeliver) {
         case (true, true): return .saveAndDeliver
@@ -1108,3 +1116,4 @@ extension BolusEntryViewModel {
         }
     }
 }
+

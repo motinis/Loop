@@ -267,10 +267,11 @@ struct BolusEntryView: View {
                     recommendationBreakdownExpanded.toggle()
                 }
             }
+
             if recommendationBreakdownExpanded {
                 VStack {
                     if viewModel.potentialCarbEntry != nil, viewModel.carbBolus != nil {
-                        let excluded = exclusionsApply && UserDefaults.standard.carbBolusCarbEntryExcluded
+                        let excluded = exclusionsApply && !viewModel.carbBolusIncluded
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
@@ -295,7 +296,7 @@ struct BolusEntryView: View {
                         }
                     }
                     if viewModel.cobCorrectionBolus != nil {
-                        let excluded = exclusionsApply && UserDefaults.standard.carbBolusCobCorrectionExcluded
+                        let excluded = exclusionsApply && !viewModel.cobCorrectionBolusIncluded
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
@@ -320,7 +321,7 @@ struct BolusEntryView: View {
                         }
                     }
                     if viewModel.bgCorrectionBolus != nil {
-                        let excluded = exclusionsApply && UserDefaults.standard.carbBolusBgCorrectionExcluded
+                        let excluded = exclusionsApply && !viewModel.bgCorrectionBolusIncluded
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
