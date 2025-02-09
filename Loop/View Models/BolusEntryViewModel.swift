@@ -812,6 +812,8 @@ final class BolusEntryViewModel: ObservableObject {
                     if exclusionsAmount >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY {
                         exclusionsBolus = HKQuantity(unit: .internationalUnit(), doubleValue: exclusionsAmount)
                         totalRecommendation -= exclusionsBolusIncluded ? exclusionsAmount : 0
+                    } else {
+                        exclusionsBolus = HKQuantity(unit: .internationalUnit(), doubleValue: -0.0) // will be negated when displayed to 0
                     }
                 }
 

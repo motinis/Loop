@@ -364,7 +364,7 @@ struct BolusEntryView: View {
                             HStack(alignment: .firstTextBaseline) {
                                 Text(viewModel.negativeMaxExcessBolusString)
                                     .font(breakdownFont)
-                                    .foregroundColor(Color(.label))
+                                    .foregroundColor(Color(exclusionsApply ? .secondaryLabel : .label))
                                 breakdownBolusUnitsLabel
                             }
                         }
@@ -389,7 +389,7 @@ struct BolusEntryView: View {
                             HStack(alignment: .firstTextBaseline) {
                                 Text(viewModel.negativeSafetyLimitString)
                                     .font(breakdownFont)
-                                    .foregroundColor(Color(.label))
+                                    .foregroundColor(Color(exclusionsApply ? .secondaryLabel : .label))
                                 breakdownBolusUnitsLabel
                             }
                         }
