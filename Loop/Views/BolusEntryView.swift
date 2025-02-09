@@ -274,7 +274,7 @@ struct BolusEntryView: View {
                         let excluded = exclusionsApply && viewModel.exclusionsApplyToCarbEntry
                         HStack {
                             Text("  ")
-                            Image(systemName: "checkmark")
+                            Image(systemName: excluded ? "xmark" : "checkmark")
                                 .imageScale(.small)
                                 .foregroundColor(excluded ? .secondary: .accentColor)
                                 .opacity(excluded || viewModel.carbBolusIncluded ? 1 : 0)
@@ -301,7 +301,7 @@ struct BolusEntryView: View {
                         let excluded = exclusionsApply && !viewModel.exclusionsApplyToCobCorrection
                         HStack {
                             Text("  ")
-                            Image(systemName: "checkmark")
+                            Image(systemName: excluded ? "xmark" : "checkmark")
                                 .imageScale(.small)
                                 .foregroundColor(excluded ? .secondary : .accentColor)
                                 .opacity(excluded || viewModel.cobCorrectionBolusIncluded ? 1 : 0)
@@ -328,7 +328,7 @@ struct BolusEntryView: View {
                         let excluded = exclusionsApply && viewModel.exclusionsApplyToBgCorrection
                         HStack {
                             Text("  ")
-                            Image(systemName: "checkmark")
+                            Image(systemName: excluded ? "xmark" : "checkmark")
                                 .imageScale(.small)
                                 .foregroundColor(excluded ? .secondary : .accentColor)
                                 .opacity(excluded || viewModel.bgCorrectionBolusIncluded ? 1 : 0)
@@ -354,7 +354,7 @@ struct BolusEntryView: View {
                     if viewModel.maxExcessBolus != nil {
                         HStack {
                             Text("  ")
-                            Image(systemName: "checkmark")
+                            Image(systemName: exclusionsApply ? "xmark" : "checkmark")
                                 .imageScale(.small)
                                 .foregroundColor(exclusionsApply ? .secondary : .accentColor)
                                 .opacity(exclusionsApply || viewModel.maxExcessBolusIncluded ? 1 : 0)
@@ -379,7 +379,7 @@ struct BolusEntryView: View {
                     if viewModel.safetyLimitBolus != nil {
                         HStack {
                             Text("  ")
-                            Image(systemName: "checkmark")
+                            Image(systemName: exclusionsApply ? "xmark" : "checkmark")
                                 .imageScale(.small)
                                 .foregroundColor(exclusionsApply ? .secondary : .accentColor)
                                 .opacity(exclusionsApply || viewModel.safetyLimitBolusIncluded ? 1 : 0)
