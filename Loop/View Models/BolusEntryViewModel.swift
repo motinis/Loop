@@ -118,17 +118,17 @@ final class BolusEntryViewModel: ObservableObject {
     let selectedCarbAbsorptionTimeEmoji: String?
 
     @Published var carbBolus: HKQuantity?
-    @Published var carbBolusIncluded : Bool
+    @Published var carbBolusIncluded = true
     var carbBolusAmount: Double? {
         carbBolus?.doubleValue(for: .internationalUnit())
     }
     @Published var cobCorrectionBolus: HKQuantity?
-    @Published var cobCorrectionBolusIncluded : Bool
+    @Published var cobCorrectionBolusIncluded = true
     var cobCorrectionBolusAmount: Double? {
         cobCorrectionBolus?.doubleValue(for: .internationalUnit())
     }
     @Published var bgCorrectionBolus: HKQuantity?
-    @Published var bgCorrectionBolusIncluded : Bool
+    @Published var bgCorrectionBolusIncluded = true
     var bgCorrectionBolusAmount: Double? {
         bgCorrectionBolus?.doubleValue(for: .internationalUnit())
     }
@@ -144,6 +144,9 @@ final class BolusEntryViewModel: ObservableObject {
     }
     @Published var exclusionsBolus: HKQuantity?
     @Published var exclusionsBolusIncluded = true
+    @Published var exclusionsApplyToCarbEntry: Bool
+    @Published var exclusionsApplyToCobCorrection: Bool
+    @Published var exclusionsApplyToBgCorrection: Bool
     var exclusionsBolusAmount: Double? {
         exclusionsBolus?.doubleValue(for: .internationalUnit())
     }
@@ -230,10 +233,10 @@ final class BolusEntryViewModel: ObservableObject {
         self.chartDateInterval = DateInterval(start: Date(timeInterval: .hours(-1), since: now()), duration: .hours(7))
         
         self.dosingDecision.originalCarbEntry = originalCarbEntry
-
-        self.carbBolusIncluded = !preferences.isCarbEntryExcluded
-        self.cobCorrectionBolusIncluded = !preferences.isCobCorrectionExcluded
-        self.bgCorrectionBolusIncluded = !preferences.isBgCorrectionExcluded
+        
+        self.exclusionsApplyToCarbEntry = preferences.isCarbEntryExcluded
+        self.exclusionsApplyToCobCorrection = preferences.isCobCorrectionExcluded
+        self.exclusionsApplyToBgCorrection = preferences.isBgCorrectionExcluded
 
         self.updateSettings()
     }
@@ -792,19 +795,17 @@ final class BolusEntryViewModel: ObservableObject {
                 }
 
                 if potentialCarbEntry != nil,
-                    !carbBolusIncluded ||
-                    !cobCorrectionBolusIncluded ||
-                    !bgCorrectionBolusIncluded
+                   exclusionsApplyToCarbEntry || exclusionsApplyToCobCorrection || exclusionsApplyToBgCorrection
                 {
                     var exclusionsAmount = -(recommendation.missingAmount ?? 0.0)
 
-                    if !carbBolusIncluded {
+                    if exclusionsApplyToCarbEntry {
                         exclusionsAmount += breakdown?.carbsAmount ?? 0.0
                     }
-                    if !cobCorrectionBolusIncluded {
+                    if exclusionsApplyToCobCorrection {
                         exclusionsAmount += breakdown?.cobCorrectionAmount ?? 0.0
                     }
-                    if !bgCorrectionBolusIncluded {
+                    if exclusionsApplyToBgCorrection {
                         exclusionsAmount += breakdown?.bgCorrectionAmount ?? 0.0
                     }
 

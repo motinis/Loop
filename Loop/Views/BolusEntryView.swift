@@ -271,13 +271,13 @@ struct BolusEntryView: View {
             if recommendationBreakdownExpanded {
                 VStack {
                     if viewModel.potentialCarbEntry != nil, viewModel.carbBolus != nil {
-                        let excluded = exclusionsApply && !viewModel.carbBolusIncluded
+                        let excluded = exclusionsApply && viewModel.exclusionsApplyToCarbEntry
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
                                 .imageScale(.small)
-                                .foregroundColor(.accentColor)
-                                .opacity(viewModel.carbBolusIncluded ? 1 : 0)
+                                .foregroundColor(excluded ? .secondary: .accentColor)
+                                .opacity(excluded || viewModel.carbBolusIncluded ? 1 : 0)
                             Text("Carb Entry", comment: "Label for carb bolus row on bolus screen")
                                 .font(breakdownFont)
                                 .foregroundStyle(excluded ? .secondary : .primary)
@@ -292,17 +292,19 @@ struct BolusEntryView: View {
                         .accessibilityElement(children: .combine)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            viewModel.carbBolusIncluded.toggle()
+                            if !excluded {
+                                viewModel.carbBolusIncluded.toggle()
+                            }
                         }
                     }
                     if viewModel.cobCorrectionBolus != nil {
-                        let excluded = exclusionsApply && !viewModel.cobCorrectionBolusIncluded
+                        let excluded = exclusionsApply && !viewModel.exclusionsApplyToCobCorrection
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
                                 .imageScale(.small)
-                                .foregroundColor(.accentColor)
-                                .opacity(viewModel.cobCorrectionBolusIncluded ? 1 : 0)
+                                .foregroundColor(excluded ? .secondary : .accentColor)
+                                .opacity(excluded || viewModel.cobCorrectionBolusIncluded ? 1 : 0)
                             Text("COB Correction", comment: "Label for COB correction bolus row on bolus screen")
                                 .font(breakdownFont)
                                 .foregroundStyle(excluded ? .secondary : .primary)
@@ -317,17 +319,19 @@ struct BolusEntryView: View {
                         .accessibilityElement(children: .combine)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            viewModel.cobCorrectionBolusIncluded.toggle()
+                            if !excluded {
+                                viewModel.cobCorrectionBolusIncluded.toggle()
+                            }
                         }
                     }
                     if viewModel.bgCorrectionBolus != nil {
-                        let excluded = exclusionsApply && !viewModel.bgCorrectionBolusIncluded
+                        let excluded = exclusionsApply && viewModel.exclusionsApplyToBgCorrection
                         HStack {
                             Text("  ")
                             Image(systemName: "checkmark")
                                 .imageScale(.small)
-                                .foregroundColor(.accentColor)
-                                .opacity(viewModel.bgCorrectionBolusIncluded ? 1 : 0)
+                                .foregroundColor(excluded ? .secondary : .accentColor)
+                                .opacity(excluded || viewModel.bgCorrectionBolusIncluded ? 1 : 0)
                             Text("BG Correction", comment: "Label for BG correction bolus row on bolus screen")
                                 .font(breakdownFont)
                                 .foregroundStyle(excluded ? .secondary : .primary)
@@ -342,7 +346,9 @@ struct BolusEntryView: View {
                         .accessibilityElement(children: .combine)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            viewModel.bgCorrectionBolusIncluded.toggle()
+                            if (!excluded) {
+                                viewModel.bgCorrectionBolusIncluded.toggle()
+                            }
                         }
                     }
                     if viewModel.maxExcessBolus != nil {
@@ -350,8 +356,8 @@ struct BolusEntryView: View {
                             Text("  ")
                             Image(systemName: "checkmark")
                                 .imageScale(.small)
-                                .foregroundColor(.accentColor)
-                                .opacity(viewModel.maxExcessBolusIncluded ? 1 : 0)
+                                .foregroundColor(exclusionsApply ? .secondary : .accentColor)
+                                .opacity(exclusionsApply || viewModel.maxExcessBolusIncluded ? 1 : 0)
                             Text("Max Bolus Limit", comment: "Label for max bolus row on bolus screen")
                                 .font(breakdownFont)
                             Spacer()
@@ -365,7 +371,9 @@ struct BolusEntryView: View {
                         .accessibilityElement(children: .combine)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            viewModel.maxExcessBolusIncluded.toggle()
+                            if (!exclusionsApply) {
+                                viewModel.maxExcessBolusIncluded.toggle()
+                            }
                         }
                     }
                     if viewModel.safetyLimitBolus != nil {
@@ -373,8 +381,8 @@ struct BolusEntryView: View {
                             Text("  ")
                             Image(systemName: "checkmark")
                                 .imageScale(.small)
-                                .foregroundColor(.accentColor)
-                                .opacity(viewModel.safetyLimitBolusIncluded ? 1 : 0)
+                                .foregroundColor(exclusionsApply ? .secondary : .accentColor)
+                                .opacity(exclusionsApply || viewModel.safetyLimitBolusIncluded ? 1 : 0)
                             Text("Glucose Safety Limit", comment: "Label for glucose safety limit row on bolus screen")
                                 .font(breakdownFont)
                             Spacer()
@@ -388,7 +396,9 @@ struct BolusEntryView: View {
                         .accessibilityElement(children: .combine)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            viewModel.safetyLimitBolusIncluded.toggle()
+                            if (!exclusionsApply) {
+                                viewModel.safetyLimitBolusIncluded.toggle()
+                            }
                         }
                     }
                     if viewModel.exclusionsBolus != nil {
