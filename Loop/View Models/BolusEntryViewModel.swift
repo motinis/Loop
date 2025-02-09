@@ -789,7 +789,7 @@ final class BolusEntryViewModel: ObservableObject {
                 
                 if let carbsAmount = breakdown?.carbsAmount, abs(carbsAmount) >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY{
                     carbBolus = HKQuantity(unit: .internationalUnit(), doubleValue: carbsAmount)
-                    totalRecommendation += carbBolusIncluded ?  carbsAmount : 0
+                    totalRecommendation += carbBolusIncluded || (exclusionsBolusIncluded && exclusionsApplyToCarbEntry) ?  carbsAmount : 0
                 } else {
                     carbBolus = nil
                 }
@@ -817,14 +817,14 @@ final class BolusEntryViewModel: ObservableObject {
 
                 if let cobCorrectionAmount = breakdown?.cobCorrectionAmount, abs(cobCorrectionAmount) >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY {
                     cobCorrectionBolus = HKQuantity(unit: .internationalUnit(), doubleValue: cobCorrectionAmount)
-                    totalRecommendation += cobCorrectionBolusIncluded ?  cobCorrectionAmount : 0
+                    totalRecommendation += cobCorrectionBolusIncluded || (exclusionsBolusIncluded && exclusionsApplyToCobCorrection) ?  cobCorrectionAmount : 0
                 } else {
                     cobCorrectionBolus = nil
                 }
                 
                 if let bgCorrectionAmount = breakdown?.bgCorrectionAmount, abs(bgCorrectionAmount) >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY {
                     bgCorrectionBolus = HKQuantity(unit: .internationalUnit(), doubleValue: bgCorrectionAmount)
-                    totalRecommendation += bgCorrectionBolusIncluded ?  bgCorrectionAmount : 0
+                    totalRecommendation += bgCorrectionBolusIncluded || (exclusionsBolusIncluded && exclusionsApplyToBgCorrection) ?  bgCorrectionAmount : 0
                 } else {
                     bgCorrectionBolus = nil
                 }
@@ -846,11 +846,11 @@ final class BolusEntryViewModel: ObservableObject {
                     }
                     
                     if let maxExcessAmount = maxExcessBolus?.doubleValue(for: .internationalUnit()) {
-                        totalRecommendation -= maxExcessBolusIncluded ? maxExcessAmount : 0
+                        totalRecommendation -= maxExcessBolusIncluded || exclusionsBolusIncluded ? maxExcessAmount : 0
                     }
 
                     if let safetyLimitAmount = safetyLimitBolus?.doubleValue(for: .internationalUnit()) {
-                        totalRecommendation -= safetyLimitBolusIncluded ? safetyLimitAmount : 0
+                        totalRecommendation -= safetyLimitBolusIncluded || exclusionsBolusIncluded ? safetyLimitAmount : 0
                     }
                 }
                 
