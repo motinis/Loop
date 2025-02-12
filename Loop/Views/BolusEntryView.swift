@@ -332,7 +332,7 @@ struct BolusEntryView: View {
                                 .imageScale(.small)
                                 .foregroundColor(excluded ? .secondary : .accentColor)
                                 .opacity(excluded || viewModel.bgCorrectionBolusIncluded ? 1 : 0)
-                            Text("BG Correction", comment: "Label for BG correction bolus row on bolus screen")
+                            Text("Glucose Correction", comment: "Label for glucose correction bolus row on bolus screen")
                                 .font(breakdownFont)
                                 .foregroundStyle(excluded ? .secondary : .primary)
                             Spacer()
