@@ -16,6 +16,13 @@ struct Preferences: PreferencesProvider {
     
     private init() {}
     
+    private func lookupBool(_ key: String, _ defaultValue: Bool) -> Bool {
+        if UserDefaults.standard.object(forKey: key) == nil {
+            return defaultValue
+        }
+        return UserDefaults.standard.bool(forKey: key)
+    }
+    
     // Basal Lock Threshold
     var basalLockThreshold: HKQuantity {
         get {
@@ -36,11 +43,7 @@ struct Preferences: PreferencesProvider {
     // Basal Lock Enabled
     var isBasalLockEnabled: Bool {
         get {
-            let key = "isBasalLockEnabled"
-            if UserDefaults.standard.object(forKey: key) == nil {
-                return false
-            }
-            return UserDefaults.standard.bool(forKey: key)
+            return lookupBool("isBasalLockEnabled", false)
         }
         set {
             let key = "isBasalLockEnabled"
@@ -51,11 +54,7 @@ struct Preferences: PreferencesProvider {
     // Exclude Carb entry from bolus recommendation
     var isCarbEntryExcluded: Bool {
         get {
-            let key = "isCarbEntryExcluded"
-            if UserDefaults.standard.object(forKey: key) == nil {
-                return false
-            }
-            return UserDefaults.standard.bool(forKey: key)
+            return lookupBool("isCarbEntryExcluded", false)
         }
         set {
             let key = "isCarbEntryExcluded"
@@ -66,11 +65,7 @@ struct Preferences: PreferencesProvider {
     // Exclude COB correction from bolus recommendation
     var isCobCorrectionExcluded: Bool {
         get {
-            let key = "isCobCorrectionExcluded"
-            if UserDefaults.standard.object(forKey: key) == nil {
-                return false
-            }
-            return UserDefaults.standard.bool(forKey: key)
+            return lookupBool("isCobCorrectionExcluded", false)
         }
         set {
             let key = "isCobCorrectionExcluded"
@@ -81,11 +76,7 @@ struct Preferences: PreferencesProvider {
     // Exclude glucose correction from bolus recommendation
     var isBgCorrectionExcluded: Bool {
         get {
-            let key = "isBgCorrectionExcluded"
-            if UserDefaults.standard.object(forKey: key) == nil {
-                return false
-            }
-            return UserDefaults.standard.bool(forKey: key)
+            return lookupBool("isBgCorrectionExcluded", false)
         }
         set {
             let key = "isBgCorrectionExcluded"
