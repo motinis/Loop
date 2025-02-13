@@ -250,7 +250,8 @@ final class DeviceDataManager {
          cacheStore: PersistenceController,
          localCacheDuration: TimeInterval,
          overrideHistory: TemporaryScheduleOverrideHistory,
-         trustedTimeChecker: TrustedTimeChecker)
+         trustedTimeChecker: TrustedTimeChecker,
+         preferences: PreferencesProvider = Preferences.shared)
     {
 
         let fileManager = FileManager.default
@@ -297,10 +298,27 @@ final class DeviceDataManager {
         )
 
         let insulinModelProvider: InsulinModelProvider
+        let fastLyumjevModel = ExponentialInsulinModel(actionDuration: .minutes(300), peakActivityTime: .minutes(62), delay: .minutes(5))
+        let insulinModelOverride = { (type: InsulinType?) -> InsulinModel? in
+            switch type {
+            case .fiasp, .afrezza:
+                break
+            case .lyumjev:
+                if preferences.useFastLyumjevInsulinModel {
+                    return fastLyumjevModel
+                }
+            default:
+                if preferences.useRapidActingChildInsulinModel {
+                    return ExponentialInsulinModelPreset.rapidActingChild.model
+                }
+            }
+            return nil
+        }
+         
         if FeatureFlags.adultChildInsulinModelSelectionEnabled {
-            insulinModelProvider = PresetInsulinModelProvider(defaultRapidActingModel: settingsManager.latestSettings.defaultRapidActingModel?.presetForRapidActingInsulin)
+            insulinModelProvider = OverridingInsulinModelProvider(PresetInsulinModelProvider(defaultRapidActingModel: settingsManager.latestSettings.defaultRapidActingModel?.presetForRapidActingInsulin), insulinModelOverride)
         } else {
-            insulinModelProvider = PresetInsulinModelProvider(defaultRapidActingModel: nil)
+            insulinModelProvider = OverridingInsulinModelProvider(PresetInsulinModelProvider(defaultRapidActingModel: nil), insulinModelOverride)
         }
 
         self.analyticsServicesManager = analyticsServicesManager

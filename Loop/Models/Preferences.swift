@@ -83,4 +83,25 @@ struct Preferences: PreferencesProvider {
             UserDefaults.standard.set(newValue, forKey: key)
         }
     }
+    
+    // Whether to use the rapid acting child insulin model
+    var forceUseOfRapidActingChildInsulinModel: Bool {
+        get {
+            return lookupBool("useRapidActingChildInsulinModel", false)
+        }
+        set {
+            let key = "useRapidActingChildInsulinModel"
+            UserDefaults.standard.set(newValue, forKey: key)
+        }
+    }
+    
+    var useFastLyumjevInsulinModel: Bool {
+        get {
+            return lookupBool("useFastLyumjevInsulinModel", false)
+        }
+        set {
+            let key = "useFastLyumjevInsulinModel"
+            UserDefaults.standard.set(newValue, forKey: key)
+        }
+    }
 }
