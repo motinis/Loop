@@ -85,7 +85,7 @@ struct Preferences: PreferencesProvider {
     }
     
     // Whether to use the rapid acting child insulin model
-    var forceUseOfRapidActingChildInsulinModel: Bool {
+    var useRapidActingChildInsulinModel: Bool {
         get {
             return lookupBool("useRapidActingChildInsulinModel", false)
         }

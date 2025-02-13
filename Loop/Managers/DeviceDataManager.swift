@@ -297,24 +297,9 @@ final class DeviceDataManager {
             provenanceIdentifier: HKSource.default().bundleIdentifier
         )
 
+        let insulinModelOverride = { DeviceDataManager.insulinModelOverride(type: $0, preferences: preferences)}
         let insulinModelProvider: InsulinModelProvider
-        let fastLyumjevModel = ExponentialInsulinModel(actionDuration: .minutes(300), peakActivityTime: .minutes(62), delay: .minutes(5))
-        let insulinModelOverride = { (type: InsulinType?) -> InsulinModel? in
-            switch type {
-            case .fiasp, .afrezza:
-                break
-            case .lyumjev:
-                if preferences.useFastLyumjevInsulinModel {
-                    return fastLyumjevModel
-                }
-            default:
-                if preferences.useRapidActingChildInsulinModel {
-                    return ExponentialInsulinModelPreset.rapidActingChild.model
-                }
-            }
-            return nil
-        }
-         
+                
         if FeatureFlags.adultChildInsulinModelSelectionEnabled {
             insulinModelProvider = OverridingInsulinModelProvider(PresetInsulinModelProvider(defaultRapidActingModel: settingsManager.latestSettings.defaultRapidActingModel?.presetForRapidActingInsulin), insulinModelOverride)
         } else {
@@ -491,6 +476,23 @@ final class DeviceDataManager {
                 }
             }
         }
+    }
+    
+    static let fastLyumjevModel = ExponentialInsulinModel(actionDuration: .minutes(300), peakActivityTime: .minutes(62), delay: .minutes(5))
+    private static func insulinModelOverride(type: InsulinType?, preferences: PreferencesProvider) -> InsulinModel? {
+        switch type {
+        case .fiasp, .afrezza:
+            break
+        case .lyumjev:
+            if preferences.useFastLyumjevInsulinModel {
+                return fastLyumjevModel
+            }
+        default:
+            if preferences.useRapidActingChildInsulinModel {
+                return ExponentialInsulinModelPreset.rapidActingChild.model
+            }
+        }
+        return nil
     }
 
     var availablePumpManagers: [PumpManagerDescriptor] {
