@@ -482,10 +482,10 @@ final class DeviceDataManager {
         ExponentialInsulinModel(actionDuration: .minutes(actionDurationMinutes), peakActivityTime: .minutes(peakMinutes), delay: .minutes(delayMinutes))
     }
     
-    fileprivate static let childNovologModel = insulinModel(360, 48, 5)
-    fileprivate static let childFiaspModel = insulinModel(360, 46, 5)
-    fileprivate static let childHumalogModel = insulinModel(360, 44, 6.5)
-    fileprivate static let childLyumjevModel = insulinModel(280, 38, 0.5)
+    fileprivate static let childNovologModel = insulinModel(360, 44.2, 9.3)
+    fileprivate static let childFiaspModel = insulinModel(360, 44.2, 3.3)
+    fileprivate static let childHumalogModel = insulinModel(335, 36.7, 11.9)
+    fileprivate static let childLyumjevModel = insulinModel(280, 31.6, 3.1)
     fileprivate static let fastLyumjevModel = insulinModel(300, 62, 5)
     fileprivate static let rapidActingChildModel = ExponentialInsulinModelPreset.rapidActingChild.model
     
