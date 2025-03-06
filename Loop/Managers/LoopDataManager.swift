@@ -1885,8 +1885,7 @@ extension LoopDataManager {
             model: model,
             pendingInsulin: 0, // Pending insulin is already reflected in the prediction
             maxBolus: usage.maxBolusOverride(maxBolus),
-            volumeRounder: usage.volumeRounderOverride(volumeRounder()),
-            preferences: Preferences.shared
+            volumeRounder: usage.volumeRounderOverride(volumeRounder())
         )
     }
 
@@ -2019,6 +2018,8 @@ extension LoopDataManager {
         let maxBolus = settings.maximumBolus!
         let maxBasal = settings.maximumBasalRatePerHour!
         
+        let basalLockThreshold = Preferences.shared.isBasalLockEnabled ? Preferences.shared.basalLockThreshold : nil
+        
         switch dosingStrategy {
         case .automaticBolus:
             let correctionRangeSchedule = settings.effectiveGlucoseTargetRangeSchedule()
@@ -2058,7 +2059,7 @@ extension LoopDataManager {
                 volumeRounder: volumeRounder ?? self.volumeRounder(),
                 rateRounder: rateRounder,
                 isBasalRateScheduleOverrideActive: settings.scheduleOverride?.isBasalRateScheduleOverriden(at: startDate) == true,
-                preferences: Preferences.shared
+                basalLockThreshold: basalLockThreshold
             )
         case .tempBasalOnly:
             
@@ -2074,7 +2075,7 @@ extension LoopDataManager {
                 lastTempBasal: lastTempBasal,
                 rateRounder: rateRounder,
                 isBasalRateScheduleOverrideActive: settings.scheduleOverride?.isBasalRateScheduleOverriden(at: startDate) == true,
-                preferences: Preferences.shared
+                basalLockThreshold: basalLockThreshold
             )
             return AutomaticDoseRecommendation(basalAdjustment: temp)
         }

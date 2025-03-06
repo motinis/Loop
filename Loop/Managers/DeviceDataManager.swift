@@ -478,19 +478,45 @@ final class DeviceDataManager {
         }
     }
     
-    static let fastLyumjevModel = ExponentialInsulinModel(actionDuration: .minutes(300), peakActivityTime: .minutes(62), delay: .minutes(5))
+    fileprivate static func insulinModel(_ actionDurationMinutes: Double, _ peakMinutes: Double, _ delayMinutes: Double) -> ExponentialInsulinModel {
+        ExponentialInsulinModel(actionDuration: .minutes(actionDurationMinutes), peakActivityTime: .minutes(peakMinutes), delay: .minutes(delayMinutes))
+    }
+    
+    fileprivate static let childNovologModel = insulinModel(360, 44.2, 9.3)
+    fileprivate static let childFiaspModel = insulinModel(360, 44.2, 3.3)
+    fileprivate static let childHumalogModel = insulinModel(335, 36.7, 11.9)
+    fileprivate static let childLyumjevModel = insulinModel(280, 31.6, 3.1)
+    fileprivate static let fastLyumjevModel = insulinModel(300, 62, 5)
+    fileprivate static let rapidActingChildModel = ExponentialInsulinModelPreset.rapidActingChild.model
+    
     private static func insulinModelOverride(type: InsulinType?, preferences: PreferencesProvider) -> InsulinModel? {
+        let defaultChildModel = preferences.useRapidActingChildInsulinModel ? rapidActingChildModel : nil
+        
         switch type {
-        case .fiasp, .afrezza:
+        case .afrezza: break
+        case .fiasp:
+            if preferences.useNewChildInsulinModel {
+                return childFiaspModel
+            }
             break
         case .lyumjev:
-            if preferences.useFastLyumjevInsulinModel {
+            if preferences.useNewChildInsulinModel {
+                return childLyumjevModel
+            } else if preferences.useFastLyumjevInsulinModel {
                 return fastLyumjevModel
             }
-        default:
-            if preferences.useRapidActingChildInsulinModel {
-                return ExponentialInsulinModelPreset.rapidActingChild.model
+        case .novolog:
+            if preferences.useNewChildInsulinModel {
+                return childNovologModel
             }
+            return defaultChildModel
+        case .humalog:
+            if preferences.useNewChildInsulinModel {
+                return childHumalogModel
+            }
+            return defaultChildModel
+        default:
+            return defaultChildModel
         }
         return nil
     }
