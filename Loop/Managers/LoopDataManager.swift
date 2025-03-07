@@ -1240,6 +1240,7 @@ extension LoopDataManager {
         dosingDecision.carbsOnBoard = carbsOnBoard
         dosingDecision.insulinOnBoard = self.insulinOnBoard
         dosingDecision.glucoseTargetRangeSchedule = settings.effectiveGlucoseTargetRangeSchedule()
+        dosingDecision.autoBolusCarbsActive = autoBolusCarbsEnabledAndActive
 
         // These will be updated by updatePredictedGlucoseAndRecommendedDose, if possible
         dosingDecision.predictedGlucose = predictedGlucoseIncludingPendingInsulin
