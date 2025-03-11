@@ -236,7 +236,7 @@ public protocol ServicesManagerDosingDelegate: AnyObject {
 }
 
 public protocol ServicesManagerDelegate: AnyObject {
-    func enactOverride(name: String, duration: TemporaryScheduleOverride.Duration?, remoteAddress: String) async throws
+    func enactOverride(name: String, duration: TemporaryScheduleOverride.Duration?, updateAutoBolusCarbsActive: Bool, autoBolusCarbsActive: Bool?, remoteAddress: String) async throws
     func cancelCurrentOverride() async throws
     func deliverCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?) async throws
 }
@@ -273,7 +273,7 @@ extension ServicesManager: ServiceDelegate {
         return semanticVersion
     }
     
-    func enactRemoteOverride(name: String, durationTime: TimeInterval?, remoteAddress: String) async throws {
+    func enactRemoteOverride(name: String, durationTime: TimeInterval?, updateAutoBolusCarbsActive: Bool, autoBolusCarbsActive: Bool?, remoteAddress: String) async throws {
         
         var duration: TemporaryScheduleOverride.Duration? = nil
         if let durationTime = durationTime {
@@ -293,7 +293,7 @@ extension ServicesManager: ServiceDelegate {
             }
         }
         
-        try await servicesManagerDelegate?.enactOverride(name: name, duration: duration, remoteAddress: remoteAddress)
+        try await servicesManagerDelegate?.enactOverride(name: name, duration: duration, updateAutoBolusCarbsActive: updateAutoBolusCarbsActive, autoBolusCarbsActive: autoBolusCarbsActive, remoteAddress: remoteAddress)
         await remoteDataServicesManager.triggerUpload(for: .overrides)
     }
     
