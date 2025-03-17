@@ -1079,6 +1079,19 @@ extension DeviceDataManager: PumpManagerDelegate {
     func pumpManagerBLEHeartbeatDidFire(_ pumpManager: PumpManager) {
         dispatchPrecondition(condition: .onQueue(queue))
         log.default("PumpManager:%{public}@ did fire heartbeat", String(describing: type(of: pumpManager)))
+
+        let now = Date()
+        let lastGlucoseDate = glucoseStore.latestGlucose?.startDate ?? .distantPast
+        if now.timeIntervalSince(max(lastBluetoothReset, lastGlucoseDate)) >= .minutes(15) {
+            self.log.default("Attempting to run shortcut cycle-bluetooth")
+            UIApplication.shared.open(URL(string: "shortcuts://run-shortcut?name=cycle-bluetooth")!) { wasRun in
+                self.log.default("Result of running shortcut cycle-bluetooth: %@", wasRun)
+                if wasRun {
+                    self.lastBluetoothReset = now
+                }
+            }
+        }
+
         refreshCGM()
     }
     
@@ -1095,16 +1108,6 @@ extension DeviceDataManager: PumpManagerDelegate {
 
             self.queue.async {
                 self.processCGMReadingResult(cgmManager, readingResult: result) {
-                    let now = Date()
-                    if now.timeIntervalSince(max(self.lastBluetoothReset, self.glucoseStore.latestGlucose?.startDate ?? .distantPast)) >= .minutes(15) {
-                        self.log.default("Attempting to open shortcut cycle-bluetooth")
-                        UIApplication.shared.open(URL(string: "shortcuts://run-shortcut?name=cycle-bluetooth")!) { wasRun in
-                            self.log.default("Result of running shortcut cycle-bluetooth %@", wasRun)
-                            if wasRun {
-                                self.lastBluetoothReset = now
-                            }
-                        }
-                    }
                     if self.loopManager.lastLoopCompleted == nil || self.loopManager.lastLoopCompleted!.timeIntervalSinceNow < -.minutes(4.2) {
                         self.log.default("Triggering Loop from refreshCGM()")
                         self.checkPumpDataAndLoop()
