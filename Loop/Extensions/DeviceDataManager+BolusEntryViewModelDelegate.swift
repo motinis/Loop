@@ -84,7 +84,7 @@ extension DeviceDataManager: BolusEntryViewModelDelegate, ManualDoseViewModelDel
     }
         
     func insulinActivityDuration(for type: InsulinType?) -> TimeInterval {
-        return doseStore.insulinModelProvider.model(for: type).effectDuration
+        return doseStore.insulinModelProvider.model(for: type).effectDuration(at: Date(), sleepSchedule: loopManager.settings.sleepSchedule)
     }
 
     var settings: LoopSettings {

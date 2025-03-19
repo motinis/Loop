@@ -215,7 +215,7 @@ final class DeviceDataManager {
 
     var analyticsServicesManager: AnalyticsServicesManager
 
-    var settingsManager: SettingsManager
+    let settingsManager: SettingsManager
 
     var remoteDataServicesManager: RemoteDataServicesManager { return servicesManager.remoteDataServicesManager }
 
@@ -320,9 +320,10 @@ final class DeviceDataManager {
             cacheStore: cacheStore,
             cacheLength: localCacheDuration,
             insulinModelProvider: insulinModelProvider,
-            longestEffectDuration: ExponentialInsulinModelPreset.rapidActingAdult.effectDuration,
+            longestEffectDuration: ExponentialInsulinModelPreset.rapidActingAdult.model.maxPossibleEffectDuration,
             basalProfile: settingsManager.latestSettings.basalRateSchedule,
             insulinSensitivitySchedule: sensitivitySchedule,
+            sleepScheduleProvider: { settingsManager.latestSettings.sleepSchedule },
             overrideHistory: overrideHistory,
             lastPumpEventsReconciliation: nil, // PumpManager is nil at this point. Will update this via addPumpEvents below
             provenanceIdentifier: HKSource.default().bundleIdentifier

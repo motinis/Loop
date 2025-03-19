@@ -92,9 +92,10 @@ class StatusViewController: UIViewController, NCWidgetProviding {
     lazy var doseStore = DoseStore(
         cacheStore: cacheStore,
         insulinModelProvider: PresetInsulinModelProvider(defaultRapidActingModel: settingsStore.latestSettings?.defaultRapidActingModel?.presetForRapidActingInsulin),
-        longestEffectDuration: ExponentialInsulinModelPreset.rapidActingAdult.effectDuration,
+        longestEffectDuration: ExponentialInsulinModelPreset.rapidActingAdult.model.maxPossibleEffectDuration,
         basalProfile: settingsStore.latestSettings?.basalRateSchedule,
         insulinSensitivitySchedule: settingsStore.latestSettings?.insulinSensitivitySchedule,
+        sleepScheduleProvider: { self.settingsStore.latestSettings?.sleepSchedule },
         provenanceIdentifier: HKSource.default().bundleIdentifier
     )
     

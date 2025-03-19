@@ -51,6 +51,7 @@ final class DataManager {
             longestEffectDuration: ExponentialInsulinModelPreset.rapidActingAdult.effectDuration,
             basalProfile: basalRateSchedule,
             insulinSensitivitySchedule: insulinSensitivitySchedule,
+            sleepScheduleProvider: { self.settings.sleepSchedule },
             provenanceIdentifier: HKSource.default().bundleIdentifier
         )
 

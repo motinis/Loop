@@ -70,6 +70,10 @@ final class LoopDataManager {
     private var insulinOnBoard: InsulinValue?
     
     private var liveActivityManager: GlucoseActivityManager?
+    
+
+    
+
 
     deinit {
         for observer in notificationObservers {
@@ -1424,7 +1428,7 @@ extension LoopDataManager {
                 let earliestEffectDate = Date(timeInterval: .hours(-24), since: now())
                 let nextEffectDate = insulinCounteractionEffects.last?.endDate ?? earliestEffectDate
                 let bolusEffect = [potentialBolus]
-                    .glucoseEffects(insulinModelProvider: doseStore.insulinModelProvider, longestEffectDuration: doseStore.longestEffectDuration, insulinSensitivity: sensitivity)
+                    .glucoseEffects(insulinModelProvider: doseStore.insulinModelProvider, longestEffectDuration: doseStore.longestEffectDuration, insulinSensitivity: sensitivity, sleepSchedule: settings.sleepSchedule)
                     .filterDateRange(nextEffectDate, nil)
                 effects.append(bolusEffect)
             }
@@ -1885,7 +1889,8 @@ extension LoopDataManager {
             model: model,
             pendingInsulin: 0, // Pending insulin is already reflected in the prediction
             maxBolus: usage.maxBolusOverride(maxBolus),
-            volumeRounder: usage.volumeRounderOverride(volumeRounder())
+            volumeRounder: usage.volumeRounderOverride(volumeRounder()),
+            sleepSchedule: settings.sleepSchedule
         )
     }
 
@@ -1965,12 +1970,14 @@ extension LoopDataManager {
             suspendInsulinDeliveryEffect = []
             throw LoopError.configurationError(.basalRateSchedule)
         }
-        
-        let insulinModel = doseStore.insulinModelProvider.model(for: pumpInsulinType)
-        let insulinActionDuration = insulinModel.effectDuration
 
         let startSuspend = now()
+
+        let insulinModel = doseStore.insulinModelProvider.model(for: pumpInsulinType)
+        let insulinActionDuration = insulinModel.effectDuration(at: startSuspend, sleepSchedule: settings.sleepSchedule)
+
         let endSuspend = startSuspend.addingTimeInterval(insulinActionDuration)
+
         
         var suspendDoses: [DoseEntry] = []
         let basalItems = basalRateSchedule.between(start: startSuspend, end: endSuspend)
@@ -1998,9 +2005,9 @@ extension LoopDataManager {
         }
         
         // Calculate predicted glucose effect of suspending insulin delivery
-        suspendInsulinDeliveryEffect = suspendDoses.glucoseEffects(insulinModelProvider: doseStore.insulinModelProvider, longestEffectDuration: doseStore.longestEffectDuration, insulinSensitivity: insulinSensitivity).filterDateRange(startSuspend, endSuspend)
+        suspendInsulinDeliveryEffect = suspendDoses.glucoseEffects(insulinModelProvider: doseStore.insulinModelProvider, longestEffectDuration: doseStore.longestEffectDuration, insulinSensitivity: insulinSensitivity, sleepSchedule: settings.sleepSchedule).filterDateRange(startSuspend, endSuspend)
     }
-
+    
     fileprivate func getDosingRecommendation(dosingStrategy: AutomaticDosingStrategy, glucose: any GlucoseSampleValue, predictedGlucose: [PredictedGlucoseValue], iobHeadroom: Double, glucoseTargetRange: GlucoseRangeSchedule?, insulinSensitivity: InsulinSensitivitySchedule?, basalRateSchedule: BasalRateSchedule?, startDate: Date, bolusApplicationFactor: Double? = nil, volumeRounder: ((Double) -> Double)? = nil) -> AutomaticDoseRecommendation? {
         
         let rateRounder = { (_ rate: Double) in
@@ -2017,8 +2024,6 @@ extension LoopDataManager {
         
         let maxBolus = settings.maximumBolus!
         let maxBasal = settings.maximumBasalRatePerHour!
-        
-        let basalLockThreshold = Preferences.shared.isBasalLockEnabled ? Preferences.shared.basalLockThreshold : nil
         
         switch dosingStrategy {
         case .automaticBolus:
@@ -2059,7 +2064,8 @@ extension LoopDataManager {
                 volumeRounder: volumeRounder ?? self.volumeRounder(),
                 rateRounder: rateRounder,
                 isBasalRateScheduleOverrideActive: settings.scheduleOverride?.isBasalRateScheduleOverriden(at: startDate) == true,
-                basalLockThreshold: basalLockThreshold
+                basalLockThreshold: ResolvedPreferences.basalLockThreshold,
+                sleepSchedule: settings.sleepSchedule
             )
         case .tempBasalOnly:
             
@@ -2075,7 +2081,8 @@ extension LoopDataManager {
                 lastTempBasal: lastTempBasal,
                 rateRounder: rateRounder,
                 isBasalRateScheduleOverrideActive: settings.scheduleOverride?.isBasalRateScheduleOverriden(at: startDate) == true,
-                basalLockThreshold: basalLockThreshold
+                basalLockThreshold: ResolvedPreferences.basalLockThreshold,
+                sleepSchedule: settings.sleepSchedule
             )
             return AutomaticDoseRecommendation(basalAdjustment: temp)
         }

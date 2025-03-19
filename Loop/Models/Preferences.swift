@@ -9,10 +9,13 @@
 import Foundation
 import LoopKit
 import HealthKit
+import LoopCore
 
 struct Preferences: PreferencesProvider {
     
     static var shared = Preferences()
+    
+    var loopSettingsUpdater: ((_ changes: (_ settings: inout LoopSettings) -> Void) -> Void)?
     
     private init() {}
     
@@ -117,4 +120,50 @@ struct Preferences: PreferencesProvider {
             UserDefaults.standard.set(newValue, forKey: key)
         }
     }
+    
+    var isSleepScheduleEnabled: Bool {
+        get {
+            return lookupBool("isSleepScheduleEnabled", false)
+        }
+        set {
+            let key = "isSleepScheduleEnabled"
+            UserDefaults.standard.set(newValue, forKey: key)
+
+            if !newValue, let loopSettingsUpdater = loopSettingsUpdater {
+                loopSettingsUpdater{ $0.sleepSchedule = nil }
+            }
+
+        }
+    }
+    
+    // for UI purposes the value is persisted here. This means that disabling isSleepScheduleEnable will
+    // result in LoopSettings.sleepSchedule == nil, the old value can still be stored here
+    var sleepSchedule: SleepSchedule? {
+        get {
+            let key = "sleepSchedule"
+            guard let value = UserDefaults.standard.array(forKey: key) as? [Date] else {
+                return nil
+            }
+            return SleepSchedule(start: value[0], end: value[1])
+        }
+        set {
+            let key = "sleepSchedule"
+            if let value = newValue {
+                UserDefaults.standard.set([value.start, value.end], forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+            
+            if isSleepScheduleEnabled, let loopSettingsUpdater = loopSettingsUpdater {
+                loopSettingsUpdater{ $0.sleepSchedule = newValue }
+            }
+        }
+    }
+}
+
+public struct ResolvedPreferences {
+    
+    public static var basalLockThreshold: HKQuantity? {
+        Preferences.shared.isBasalLockEnabled ? Preferences.shared.basalLockThreshold : nil
+    }    
 }
