@@ -144,12 +144,13 @@ struct Preferences: PreferencesProvider {
             guard let value = UserDefaults.standard.array(forKey: key) as? [Date] else {
                 return nil
             }
-            return SleepSchedule(start: value[0], end: value[1])
+            return SleepSchedule(DateInterval(start: value[0], end: value[1]))
         }
         set {
             let key = "sleepSchedule"
             if let value = newValue {
-                UserDefaults.standard.set([value.start, value.end], forKey: key)
+                let dateInterval = value.asDateInterval()
+                UserDefaults.standard.set([dateInterval.start, dateInterval.end], forKey: key)
             } else {
                 UserDefaults.standard.removeObject(forKey: key)
             }
