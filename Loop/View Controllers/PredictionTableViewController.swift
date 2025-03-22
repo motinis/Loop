@@ -287,13 +287,15 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         
         if input == .damper, let negativeInsulinDamper = negativeInsulinDamper {
             let formatter = NumberFormatter()
+            formatter.usesSignificantDigits = false
+            formatter.numberStyle = .percent
             formatter.minimumIntegerDigits = 1
             formatter.maximumFractionDigits = 1
-            formatter.maximumSignificantDigits = 2
+            formatter.roundingMode = .halfUp
             
             let damper = String(
-                format: NSLocalizedString("Damper Strength: %1$@%%", comment: "Format string describing damper strength. (1: damper strength percentage)"),
-                formatter.string(from: 100 * negativeInsulinDamper) ?? "?"
+                format: NSLocalizedString("Damper Strength: %1$@", comment: "Format string describing damper strength. (1: damper strength percentage)"),
+                formatter.string(from: negativeInsulinDamper) ?? "?"
             )
             
             subtitleText = String(format: "%@\n%@", subtitleText, damper)
