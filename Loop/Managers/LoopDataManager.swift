@@ -236,6 +236,8 @@ final class LoopDataManager {
                 self.cancelActiveTempBasal(for: .automaticDosingDisabled)
             } }
             .store(in: &cancellables)
+        
+        Preferences.shared.loopSettingsUpdater = self.mutateSettings(_:)
     }
 
     /// Loop-related settings
