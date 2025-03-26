@@ -366,7 +366,7 @@ final class StatusTableViewController: LoopChartsTableViewController {
         let availableWidth = (refreshContext.newSize ?? tableView.bounds.size).width - charts.fixedHorizontalMargin
 
         let totalHours = floor(Double(availableWidth / LoopConstants.minimumChartWidthPerHour))
-        let futureHours = ceil(deviceManager.doseStore.longestEffectDuration.hours)
+        let futureHours = ceil(deviceManager.loopManager.effectDuration(at: Date()))
         let historyHours = max(LoopConstants.statusChartMinimumHistoryDisplay.hours, totalHours - futureHours)
 
         let date = Date(timeIntervalSinceNow: -TimeInterval(hours: historyHours))
