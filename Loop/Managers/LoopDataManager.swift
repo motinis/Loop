@@ -1428,7 +1428,7 @@ extension LoopDataManager {
                 let earliestEffectDate = Date(timeInterval: .hours(-24), since: now())
                 let nextEffectDate = insulinCounteractionEffects.last?.endDate ?? earliestEffectDate
                 let bolusEffect = [potentialBolus]
-                    .glucoseEffects(insulinModelProvider: doseStore.insulinModelProvider, longestEffectDuration: doseStore.longestEffectDuration, insulinSensitivity: sensitivity, sleepSchedule: settings.sleepSchedule)
+                    .glucoseEffects(insulinModelProvider: doseStore.insulinModelProvider, longestEffectDuration: effectDuration(at: potentialBolus.startDate, for: potentialBolus.insulinType), insulinSensitivity: sensitivity, sleepSchedule: settings.sleepSchedule)
                     .filterDateRange(nextEffectDate, nil)
                 effects.append(bolusEffect)
             }
@@ -1504,7 +1504,7 @@ extension LoopDataManager {
 
         // Dosing requires prediction entries at least as long as the insulin model duration.
         // If our prediction is shorter than that, then extend it here.
-        let finalDate = glucose.startDate.addingTimeInterval(doseStore.longestEffectDuration)
+        let finalDate = glucose.startDate.addingTimeInterval(effectDuration(at: glucose.startDate))
         if let last = prediction.last, last.startDate < finalDate {
             prediction.append(PredictedGlucoseValue(startDate: finalDate, quantity: last.quantity))
         }
@@ -1973,8 +1973,7 @@ extension LoopDataManager {
 
         let startSuspend = now()
 
-        let insulinModel = doseStore.insulinModelProvider.model(for: pumpInsulinType)
-        let insulinActionDuration = insulinModel.effectDuration(at: startSuspend, sleepSchedule: settings.sleepSchedule)
+        let insulinActionDuration = effectDuration(at: startSuspend)
 
         let endSuspend = startSuspend.addingTimeInterval(insulinActionDuration)
 
@@ -2005,7 +2004,15 @@ extension LoopDataManager {
         }
         
         // Calculate predicted glucose effect of suspending insulin delivery
-        suspendInsulinDeliveryEffect = suspendDoses.glucoseEffects(insulinModelProvider: doseStore.insulinModelProvider, longestEffectDuration: doseStore.longestEffectDuration, insulinSensitivity: insulinSensitivity, sleepSchedule: settings.sleepSchedule).filterDateRange(startSuspend, endSuspend)
+        suspendInsulinDeliveryEffect = suspendDoses.glucoseEffects(insulinModelProvider: doseStore.insulinModelProvider, longestEffectDuration: insulinActionDuration, insulinSensitivity: insulinSensitivity, sleepSchedule: settings.sleepSchedule).filterDateRange(startSuspend, endSuspend)
+    }
+    
+    public func effectDuration(at start: Date) -> TimeInterval {
+        effectDuration(at: start, for: pumpInsulinType)
+    }
+    
+    public func effectDuration(at start: Date, for insulinType: InsulinType?) -> TimeInterval {
+        doseStore.insulinModelProvider.model(for: insulinType).effectDuration(at: start, sleepSchedule: settings.sleepSchedule)
     }
     
     fileprivate func getDosingRecommendation(dosingStrategy: AutomaticDosingStrategy, glucose: any GlucoseSampleValue, predictedGlucose: [PredictedGlucoseValue], iobHeadroom: Double, glucoseTargetRange: GlucoseRangeSchedule?, insulinSensitivity: InsulinSensitivitySchedule?, basalRateSchedule: BasalRateSchedule?, startDate: Date, bolusApplicationFactor: Double? = nil, volumeRounder: ((Double) -> Double)? = nil) -> AutomaticDoseRecommendation? {
