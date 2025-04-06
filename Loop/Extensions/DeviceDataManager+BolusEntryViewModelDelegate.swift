@@ -59,6 +59,10 @@ extension DeviceDataManager: BolusEntryViewModelDelegate, ManualDoseViewModelDel
         carbStore.carbsOnBoard(at: date, effectVelocities: effectVelocities, completion: completion)
     }
     
+    func getCarbEntries(start: Date?, end: Date?, completion: @escaping (_ result: CarbStoreResult<[StoredCarbEntry]>) -> Void) {
+        carbStore.getCarbEntries(start: start, end: end, completion: completion)
+    }
+
     func ensureCurrentPumpData(completion: @escaping (Date?) -> Void) {
         pumpManager?.ensureCurrentPumpData(completion: completion)
     }
@@ -93,5 +97,9 @@ extension DeviceDataManager: BolusEntryViewModelDelegate, ManualDoseViewModelDel
 
     func updateRemoteRecommendation() {
         loopManager.updateRemoteRecommendation()
+    }
+    
+    var deviceDataManager: DeviceDataManager {
+        return self
     }
 }
