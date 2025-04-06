@@ -82,6 +82,9 @@ final class CarbEntryViewModel: ObservableObject {
     @Published var favoriteFoods = UserDefaults.standard.favoriteFoods
     @Published var selectedFavoriteFoodIndex = -1
     
+    @Published var carbEntriesOnBoardingSoon: [StoredCarbEntry] = []
+    @Published var carbGramsOnBoardingSoon: Double?
+    
     weak var delegate: CarbEntryViewModelDelegate?
     
     private lazy var cancellables = Set<AnyCancellable>()
@@ -280,13 +283,38 @@ final class CarbEntryViewModel: ObservableObject {
     
     private func observeLoopUpdates() {
         self.checkIfOverrideEnabled()
+        self.reloadCarbsOnBoardingSoon()
+        
         NotificationCenter.default
             .publisher(for: .LoopDataUpdated)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] note in
                 self?.checkIfOverrideEnabled()
+                
+                let context = note.userInfo?[LoopDataManager.LoopUpdateContextKey] as! LoopDataManager.LoopUpdateContext.RawValue
+                if .carbs == LoopDataManager.LoopUpdateContext(rawValue: context) {
+                    self?.reloadCarbsOnBoardingSoon()
+                }
             }
             .store(in: &cancellables)
+    }
+    
+    private func reloadCarbsOnBoardingSoon() {
+        let now = Date()
+        delegate?.withLoopState{ [weak self] state in
+            self?.delegate?.getCarbEntries(start: now, end: now.addingTimeInterval(.minutes(30))) { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let carbEntries):
+                        self?.carbEntriesOnBoardingSoon = carbEntries
+                        self?.carbGramsOnBoardingSoon = carbEntries.reduce(0) { $0 + $1.quantity.doubleValue(for: .gram()) }
+                    case .failure:
+                        self?.carbEntriesOnBoardingSoon = []
+                        self?.carbGramsOnBoardingSoon = nil
+                    }
+                }
+            }
+        }
     }
     
     private func checkIfOverrideEnabled() {

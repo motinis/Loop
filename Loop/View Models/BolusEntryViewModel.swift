@@ -37,6 +37,8 @@ protocol BolusEntryViewModelDelegate: AnyObject {
     
     func carbsOnBoard(at date: Date, effectVelocities: [GlucoseEffectVelocity]?, completion: @escaping (_ result: CarbStoreResult<CarbValue>) -> Void)
     
+    func getCarbEntries(start: Date?, end: Date?, completion: @escaping (_ result: CarbStoreResult<[StoredCarbEntry]>) -> Void)
+    
     func insulinActivityDuration(for type: InsulinType?) -> TimeInterval
 
     var mostRecentGlucoseDataDate: Date? { get }
@@ -54,6 +56,9 @@ protocol BolusEntryViewModelDelegate: AnyObject {
     func roundBolusVolume(units: Double) -> Double
 
     func updateRemoteRecommendation()
+    
+    // this is necessary in order to access CarbAbsorptionView
+    var deviceDataManager: DeviceDataManager { get }
 }
 
 @MainActor
@@ -163,6 +168,8 @@ final class BolusEntryViewModel: ObservableObject {
 
     @Published var activeAlert: Alert?
     @Published var activeNotice: Notice?
+    
+    @Published var potentialDuplicateCarbEntries: [StoredCarbEntry] = []
 
     private let log = OSLog(category: "BolusEntryViewModel")
     private var cancellables: Set<AnyCancellable> = []
@@ -730,7 +737,43 @@ final class BolusEntryViewModel: ObservableObject {
                 self?.updateCarbsOnBoard(from: state)
                 self?.updateRecommendedBolusAndNotice(from: state, isUpdatingFromUserInput: false)
                 self?.updatePredictedGlucoseValues(from: state)
+                self?.updatePotentialDuplicateCarbEntries(from: state)
                 continuation.resume()
+            }
+        }
+    }
+    
+    private func hasDefaultFoodEmoji(_ foodType: String?) -> Bool {
+        foodType != FoodEmojiShortcut.other.emoji && FoodEmojiShortcut.all.map{$0.emoji}.contains(foodType)
+    }
+    
+    private func updatePotentialDuplicateCarbEntries(from state: LoopState) {
+        
+        guard let potentialCarbEntry = potentialCarbEntry else {
+            return
+        }
+        
+        delegate?.getCarbEntries(start: potentialCarbEntry.startDate.addingTimeInterval(.minutes(-15)), end: potentialCarbEntry.startDate) { result in
+            DispatchQueue.main.async {
+                self.potentialDuplicateCarbEntries = []
+
+                switch result {
+                case .success(let carbEntries):
+                    for carbEntry in carbEntries {
+                        guard carbEntry != self.originalCarbEntry else {
+                            continue
+                        }
+                        guard carbEntry.absorptionTime == potentialCarbEntry.absorptionTime, carbEntry.quantity == potentialCarbEntry.quantity else {
+                            continue
+                        }
+                        guard carbEntry.foodType == potentialCarbEntry.foodType || self.hasDefaultFoodEmoji(carbEntry.foodType) || self.hasDefaultFoodEmoji(potentialCarbEntry.foodType) else {
+                            continue
+                        }
+                        self.potentialDuplicateCarbEntries.append(carbEntry)
+                    }
+                case .failure:
+                    break
+                }
             }
         }
     }

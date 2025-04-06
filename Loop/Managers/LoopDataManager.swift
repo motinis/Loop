@@ -1246,6 +1246,7 @@ extension LoopDataManager {
         dosingDecision.carbsOnBoard = carbsOnBoard
         dosingDecision.insulinOnBoard = self.insulinOnBoard
         dosingDecision.glucoseTargetRangeSchedule = settings.effectiveGlucoseTargetRangeSchedule()
+        dosingDecision.autoBolusCarbsActive = autoBolusCarbsEnabledAndActive
 
         // These will be updated by updatePredictedGlucoseAndRecommendedDose, if possible
         dosingDecision.predictedGlucose = predictedGlucoseIncludingPendingInsulin
@@ -2904,7 +2905,7 @@ extension LoopDataManager: ServicesManagerDelegate {
     
     //Overrides
     
-    func enactOverride(name: String, duration: TemporaryScheduleOverride.Duration?, remoteAddress: String) async throws {
+    func enactOverride(name: String, duration: TemporaryScheduleOverride.Duration?, updateAutoBolusCarbsActive: Bool, autoBolusCarbsActive: Bool?, remoteAddress: String) async throws {
         
         guard let preset = settings.overridePresets.first(where: { $0.name == name }) else {
             throw EnactOverrideError.unknownPreset(name)
@@ -2914,6 +2915,10 @@ extension LoopDataManager: ServicesManagerDelegate {
         
         if let duration {
             remoteOverride.duration = duration
+        }
+        
+        if updateAutoBolusCarbsActive {
+            remoteOverride.settings.autoBolusCarbsActive = autoBolusCarbsActive
         }
         
         await enactOverride(remoteOverride)

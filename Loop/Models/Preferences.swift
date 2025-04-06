@@ -54,7 +54,7 @@ struct Preferences: PreferencesProvider {
         }
     }
     
-    // Exclude Carb entry from bolus recommendation
+    // Exclude Carb entry from meal bolus recommendation
     var isCarbEntryExcluded: Bool {
         get {
             return lookupBool("isCarbEntryExcluded", false)
@@ -65,7 +65,7 @@ struct Preferences: PreferencesProvider {
         }
     }
 
-    // Exclude COB correction from bolus recommendation
+    // Exclude COB correction from meal bolus recommendation
     var isCobCorrectionExcluded: Bool {
         get {
             return lookupBool("isCobCorrectionExcluded", false)
@@ -76,13 +76,24 @@ struct Preferences: PreferencesProvider {
         }
     }
 
-    // Exclude glucose correction from bolus recommendation
+    // Exclude glucose correction from meal bolus recommendation
     var isBgCorrectionExcluded: Bool {
         get {
             return lookupBool("isBgCorrectionExcluded", false)
         }
         set {
             let key = "isBgCorrectionExcluded"
+            UserDefaults.standard.set(newValue, forKey: key)
+        }
+    }
+
+    // Detect potential duplicate carb entries when bolusing meals
+    var isDetectMealDuplicatesEnabled: Bool {
+        get {
+            return lookupBool("isDetectMealDuplicatesEnabled", false)
+        }
+        set {
+            let key = "isDetectMealDuplicatesEnabled"
             UserDefaults.standard.set(newValue, forKey: key)
         }
     }
@@ -158,7 +169,8 @@ struct Preferences: PreferencesProvider {
                 loopSettingsUpdater{ $0.sleepSchedule = newValue }
             }
         }
-    }
+    }    
+    
 }
 
 public struct ResolvedPreferences {

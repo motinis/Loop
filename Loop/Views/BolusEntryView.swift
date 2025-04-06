@@ -28,6 +28,13 @@ struct BolusEntryView: View {
     @State private var isKeyboardVisible = false
     @State private var pickerShouldExpand = false
     @State private var editedBolusAmount = false
+    
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     var body: some View {
         GeometryReader { geometry in
@@ -132,6 +139,44 @@ struct BolusEntryView: View {
                     .buttonStyle(PlainButtonStyle())
                 }
 
+                let duplicateEntryCount = viewModel.potentialDuplicateCarbEntries.count
+                if duplicateEntryCount > 0 {
+                    let maxFoodTypeLength = viewModel.potentialDuplicateCarbEntries.reduce(0){max($0, $1.foodType?.count ?? 0)}
+                    let maxColumns = maxFoodTypeLength > 3 ? 2 : 3
+                    let numColumns = min(duplicateEntryCount, maxColumns)
+                    Divider()
+                    Text("Potential duplicate carb entries:")
+                    LazyVGrid(columns: [GridItem](repeating: GridItem(.flexible(), alignment: .leading), count: maxColumns), spacing: 10) {
+                        ForEach(0..<duplicateEntryCount, id: \.self) { index in
+                            let displayIndex = ((index % numColumns) * duplicateEntryCount + index) / numColumns
+                            let carbEntry = viewModel.potentialDuplicateCarbEntries[displayIndex]
+                            let foodType = carbEntry.foodType ?? " - "
+                            let displayFoodType = foodType.count != 0 ? foodType : " - "
+                            let showBackground = carbEntry.foodType != displayFoodType
+
+                            HStack {
+                                if index % numColumns != 0 {
+                                    Divider()
+                                }
+                                Text(" ")
+                                Text(timeFormatter.string(from: carbEntry.startDate))
+                                Spacer()
+                                Text(displayFoodType)
+                                    .opacity(showBackground ? 0.5 : 1)
+                                    .background(Color(showBackground ? UIColor.secondarySystemBackground : UIColor.systemBackground))
+                            }
+                        }
+                        if duplicateEntryCount % maxColumns != 0 {
+                            ForEach(duplicateEntryCount % maxColumns..<maxColumns, id: \.self) { _ in
+                                HStack {
+                                    Divider()
+                                }
+                            }
+                        }
+                    }
+                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                }
             }
             .padding(.top, 12)
             .padding(.bottom, 8)
