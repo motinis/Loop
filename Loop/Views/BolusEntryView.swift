@@ -343,7 +343,7 @@ struct BolusEntryView: View {
                         }
                     }
                     if viewModel.cobCorrectionBolus != nil {
-                        let excluded = exclusionsEnabled && !viewModel.exclusionsApplyToCobCorrection
+                        let excluded = exclusionsEnabled && viewModel.exclusionsApplyToCobCorrection
                         HStack {
                             Text("  ")
                             Image(systemName: excluded ? "xmark" : "checkmark")
