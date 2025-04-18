@@ -1076,7 +1076,7 @@ extension LoopDataManager {
                     // anchorScale is set to 1 hour for rapid acting adult, and 46 minutes for ultra-rapid insulins
                     let anchorScale: Double
                     if let expModel = model as? ExponentialInsulinModel {
-                        anchorScale = (60.0 / 85.0) * (expModel.delay.hours + expModel.peakActivityTime.hours)
+                        anchorScale = (60.0 / 85.0) * expModel.resolveDuration(at: lastGlucoseDate, duration: expModel.delay + expModel.peakActivityTime, sleepSchedule: latestSettings.sleepSchedule).hours
                     } else {
                         anchorScale = 1.0
                     }

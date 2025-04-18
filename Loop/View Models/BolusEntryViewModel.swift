@@ -56,9 +56,6 @@ protocol BolusEntryViewModelDelegate: AnyObject {
     func roundBolusVolume(units: Double) -> Double
 
     func updateRemoteRecommendation()
-    
-    // this is necessary in order to access CarbAbsorptionView
-    var deviceDataManager: DeviceDataManager { get }
 }
 
 @MainActor
