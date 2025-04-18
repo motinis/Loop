@@ -98,8 +98,4 @@ extension DeviceDataManager: BolusEntryViewModelDelegate, ManualDoseViewModelDel
     func updateRemoteRecommendation() {
         loopManager.updateRemoteRecommendation()
     }
-    
-    var deviceDataManager: DeviceDataManager {
-        return self
-    }
 }

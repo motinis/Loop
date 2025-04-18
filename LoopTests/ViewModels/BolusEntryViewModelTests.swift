@@ -871,7 +871,7 @@ public enum BolusEntryViewTestError: Error {
 }
 
 fileprivate class MockBolusEntryViewModelDelegate: BolusEntryViewModelDelegate {
-
+    
     fileprivate var loopState = MockLoopState()
 
     private let dataAccessQueue = DispatchQueue(label: "com.loopKit.tests.dataAccessQueue", qos: .utility)
@@ -952,6 +952,11 @@ fileprivate class MockBolusEntryViewModelDelegate: BolusEntryViewModelDelegate {
             completion(carbsOnBoardResult)
         }
     }
+    
+    func getCarbEntries(start: Date?, end: Date?, completion: @escaping (LoopKit.CarbStoreResult<[LoopKit.StoredCarbEntry]>) -> Void) {
+        completion(.failure(.notConfigured))
+    }
+
     
     var ensureCurrentPumpDataCompletion: ((Date?) -> Void)?
     func ensureCurrentPumpData(completion: @escaping (Date?) -> Void) {
