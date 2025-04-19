@@ -14,7 +14,7 @@ import LoopKitUI
 extension SettingsView {
     internal var algorithmExperimentsSection: some View {
         NavigationLink(NSLocalizedString("Algorithm Experiments", comment: "The title of the Algorithm Experiments section in settings")) {
-            ExperimentsSettingsView(automaticDosingStrategy: viewModel.automaticDosingStrategy)
+            ExperimentsSettingsView(automaticDosingStrategy: viewModel.automaticDosingStrategy, sleepSchedule: viewModel.loopSettings().sleepSchedule)
         }
     }
 }
@@ -44,10 +44,12 @@ public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.GlucoseBasedApplicationFactorEnabled.rawValue) private var isGlucoseBasedApplicationFactorEnabled = false
     @AppStorage(UserDefaults.Key.IntegralRetrospectiveCorrectionEnabled.rawValue) private var isIntegralRetrospectiveCorrectionEnabled = false
     @AppStorage(UserDefaults.Key.NegativeInsulinDamperEnabled.rawValue) private var isNegativeInsulinDamperEnabled = false
+    @AppStorage(UserDefaults.Key.SleepScheduleAffectsNegativeInsulinDamperEnabled.rawValue) private var isSleepScheduleAffectsNegativeInsulinDamperEnabled = false
     @AppStorage(UserDefaults.Key.AutoBolusCarbsEnabled.rawValue) private var isAutoBolusCarbsEnabled = false
     @AppStorage(UserDefaults.Key.AutoBolusCarbsActiveByDefault.rawValue) private var autoBolusCarbsActiveByDefault = false
 
     var automaticDosingStrategy: AutomaticDosingStrategy
+    var sleepSchedule: SleepSchedule?
 
     public var body: some View {
         ScrollView {
@@ -76,7 +78,7 @@ public struct ExperimentsSettingsView: View {
                         name: NSLocalizedString("Integral Retrospective Correction", comment: "Title of integral retrospective correction experiment"),
                         enabled: isIntegralRetrospectiveCorrectionEnabled)
                 }
-                NavigationLink(destination: NegativeInsulinDamperSelectionView(isNegativeInsulinDamperEnabled: $isNegativeInsulinDamperEnabled)) {
+                NavigationLink(destination: NegativeInsulinDamperSelectionView(isNegativeInsulinDamperEnabled: $isNegativeInsulinDamperEnabled, isAffectedBySleepSchedule: $isSleepScheduleAffectsNegativeInsulinDamperEnabled, sleepSchedule: sleepSchedule)) {
                     ExperimentRow(
                         name: NSLocalizedString("Negative Insulin Damper", comment: "Title of negative insulin damper experiment"),
                         enabled: isNegativeInsulinDamperEnabled)
@@ -118,6 +120,7 @@ extension UserDefaults {
         case GlucoseBasedApplicationFactorEnabled = "com.loopkit.algorithmExperiments.glucoseBasedApplicationFactorEnabled"
         case IntegralRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.integralRetrospectiveCorrectionEnabled"
         case NegativeInsulinDamperEnabled = "com.loopkit.algorithmExperiments.negativeInsulinDamperEnabled"
+        case SleepScheduleAffectsNegativeInsulinDamperEnabled = "com.loopkit.algorithmExperiments.sleepScheduleAffectsNegativeInsulinDamperEnabled"
         case AutoBolusCarbsEnabled = "com.loopkit.algorithmExperiments.autoBolusCarbsEnabled"
         case AutoBolusCarbsActiveByDefault = "com.loopkit.algorithmExperiments.autoBolusCarbsActiveByDefault"
     }
@@ -146,6 +149,15 @@ extension UserDefaults {
         }
         set {
             set(newValue, forKey: Key.NegativeInsulinDamperEnabled.rawValue)
+        }
+    }
+    
+    var sleepScheduleAffectsNegativeInsulinDamperEnabled: Bool {
+        get {
+            bool(forKey: Key.SleepScheduleAffectsNegativeInsulinDamperEnabled.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.SleepScheduleAffectsNegativeInsulinDamperEnabled.rawValue)
         }
     }
 
