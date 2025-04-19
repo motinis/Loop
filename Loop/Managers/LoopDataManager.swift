@@ -1063,7 +1063,8 @@ extension LoopDataManager {
                         }
                     }
                     
-                    guard let insulinSensitivity = latestSettings.insulinSensitivitySchedule?.quantity(at: lastGlucoseDate),                    let basalRate = latestSettings.basalRateSchedule?.value(at: lastGlucoseDate) else {
+                    guard let insulinSensitivity = latestSettings.insulinSensitivitySchedule?.quantity(at: lastGlucoseDate),
+                          let basalRate = latestSettings.basalRateSchedule?.value(at: lastGlucoseDate) else {
                         
                         self.logger.error("Could not fetch ISF and/or basal rates for damper")
                         self.negativeInsulinDamper = nil
@@ -1076,7 +1077,9 @@ extension LoopDataManager {
                     // anchorScale is set to 1 hour for rapid acting adult, and 46 minutes for ultra-rapid insulins
                     let anchorScale: Double
                     if let expModel = model as? ExponentialInsulinModel {
-                        anchorScale = (60.0 / 85.0) * expModel.resolveDuration(at: lastGlucoseDate, duration: expModel.delay + expModel.peakActivityTime, sleepSchedule: latestSettings.sleepSchedule).hours
+                        let timeToPeak = expModel.delay + expModel.peakActivityTime
+                        let sleepSchedule = UserDefaults.standard.sleepScheduleAffectsNegativeInsulinDamperEnabled ? latestSettings.sleepSchedule : nil
+                        anchorScale = (60.0 / 85.0) * expModel.resolveDuration(at: lastGlucoseDate, duration: timeToPeak, sleepSchedule: sleepSchedule).hours
                     } else {
                         anchorScale = 1.0
                     }
