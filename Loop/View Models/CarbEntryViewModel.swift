@@ -306,7 +306,7 @@ final class CarbEntryViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     switch result {
                     case .success(let carbEntries):
-                        self?.carbEntriesOnBoardingSoon = carbEntries
+                        self?.carbEntriesOnBoardingSoon = carbEntries.filter{$0 != self?.originalCarbEntry}
                         self?.carbGramsOnBoardingSoon = carbEntries.reduce(0) { $0 + $1.quantity.doubleValue(for: .gram()) }
                     case .failure:
                         self?.carbEntriesOnBoardingSoon = []
