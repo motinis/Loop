@@ -166,6 +166,7 @@ final class BolusEntryViewModel: ObservableObject {
     @Published var activeAlert: Alert?
     @Published var activeNotice: Notice?
     
+    private let potentialDuplicateCarbEntriesSupported: Bool
     @Published var potentialDuplicateCarbEntries: [StoredCarbEntry] = []
 
     private let log = OSLog(category: "BolusEntryViewModel")
@@ -238,6 +239,7 @@ final class BolusEntryViewModel: ObservableObject {
         self.exclusionsApplyToCarbEntry = preferences.isCarbEntryExcluded
         self.exclusionsApplyToCobCorrection = preferences.isCobCorrectionExcluded
         self.exclusionsApplyToBgCorrection = preferences.isBgCorrectionExcluded
+        self.potentialDuplicateCarbEntriesSupported = preferences.isDetectMealDuplicatesEnabled
 
         self.updateSettings()
     }
@@ -746,14 +748,14 @@ final class BolusEntryViewModel: ObservableObject {
     
     private func updatePotentialDuplicateCarbEntries(from state: LoopState) {
         
-        guard let potentialCarbEntry = potentialCarbEntry else {
+        guard let potentialCarbEntry = potentialCarbEntry, potentialDuplicateCarbEntriesSupported else {
             return
         }
         
         delegate?.getCarbEntries(start: potentialCarbEntry.startDate.addingTimeInterval(.minutes(-15)), end: potentialCarbEntry.startDate) { result in
             DispatchQueue.main.async {
                 self.potentialDuplicateCarbEntries = []
-
+                
                 switch result {
                 case .success(let carbEntries):
                     for carbEntry in carbEntries {
