@@ -429,7 +429,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         var predictions = [[Double]]()
         var aceBaseWeight: Double = .nan
         
-        let targetValue = 0.5 * (188.09800544067201 + 196.63003524974422) // average of noCarbs and carbs predictions from previous cycle
+        let targetValue = 0.5 * (188.09812579780018 + 196.63016912850532) // average of noCarbs and carbs predictions from previous cycle
         
         let updateGroup = DispatchGroup()
         updateGroup.enter()

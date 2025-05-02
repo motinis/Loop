@@ -134,8 +134,7 @@ class LoopDataManagerTests: XCTestCase {
                // note that carbHistory is independent from carb effects;
                // one can use dummy replacement carb entry to force recalculation when getting a manual bolus recommendation
                carbHistorySupplier: ((Date) -> [StoredCarbEntry]?)? = nil,
-               autoBolusCarbs: Bool = false
-    )
+               autoBolusCarbs: Bool = false,
                carbsOnBoard: CarbValue? = nil,
                adapativeCarbohydrateEffectEnabled: Bool = false)
     {
@@ -176,10 +175,6 @@ class LoopDataManagerTests: XCTestCase {
         doseStore.basalProfileApplyingOverrideHistory = doseStore.basalProfile
         doseStore.sensitivitySchedule = insulinSensitivitySchedule
         let glucoseStore = MockGlucoseStore(for: test)
-        let carbStore = MockCarbStore(for: test)
-        carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
-        carbStore.carbRatioSchedule = carbRatioSchedule
-        carbStore.carbsOnBoard = carbsOnBoard
         
         let currentDate = glucoseStore.latestGlucose!.startDate
         now = currentDate
@@ -187,6 +182,7 @@ class LoopDataManagerTests: XCTestCase {
         let carbStore = MockCarbStore(for: test, predictGlucose: predictCarbGlucoseEffects, carbHistory: carbHistorySupplier?(now))
         carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
         carbStore.carbRatioSchedule = carbRatioSchedule
+        carbStore.carbsOnBoard = carbsOnBoard
 
         UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = adapativeCarbohydrateEffectEnabled
         

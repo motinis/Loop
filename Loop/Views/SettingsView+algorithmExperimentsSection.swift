@@ -89,6 +89,7 @@ public struct ExperimentsSettingsView: View {
                     ExperimentRow(
                         name: NSLocalizedString("Auto-Bolus Carbs", comment: "Title of auto-bolus carbs experiment"),
                         enabled: isAutoBolusCarbsEnabled)
+                }
                 NavigationLink(destination: AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: $isAdaptiveCarbohydrateEffectEnabled, isDisabledWhenBolusingCarbs: $isAdaptiveCarbohydrateEffectDisableWhenBolusingCarbs)) {
                     ExperimentRow(
                         name: NSLocalizedString("Adaptive Carbohydrate Effect", comment: "Title of adaptive carbohydrate effect experiment"),
@@ -193,5 +194,5 @@ extension UserDefaults {
         set {
             set(newValue, forKey: Key.AdaptiveCarbohydrateEffectEnabled.rawValue)
         }
-    }    
+    }
 }
