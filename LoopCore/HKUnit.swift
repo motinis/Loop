@@ -13,6 +13,8 @@ extension HKUnit {
     public static let milligramsPerDeciliter: HKUnit = {
         return HKUnit.gramUnit(with: .milli).unitDivided(by: .literUnit(with: .deci))
     }()
+    
+    public static let mgdL = milligramsPerDeciliter
 
     public static let millimolesPerLiter: HKUnit = {
         return HKUnit.moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose).unitDivided(by: .liter())

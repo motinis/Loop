@@ -62,7 +62,11 @@ class MockGlucoseStore: GlucoseStoreProtocol {
     }
     
     func getGlucoseSamples(start: Date?, end: Date?, completion: @escaping (Result<[StoredGlucoseSample], Error>) -> Void) {
-        completion(.success([latestGlucose as! StoredGlucoseSample]))
+        if let storedGlucose {
+            completion(.success(storedGlucose.filterDateRange(start, end)))
+        } else {
+            completion(.success([latestGlucose as! StoredGlucoseSample]))
+        }
     }
     
     func generateDiagnosticReport(_ completion: @escaping (String) -> Void) {

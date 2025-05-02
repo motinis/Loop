@@ -136,6 +136,8 @@ class LoopDataManagerTests: XCTestCase {
                carbHistorySupplier: ((Date) -> [StoredCarbEntry]?)? = nil,
                autoBolusCarbs: Bool = false
     )
+               carbsOnBoard: CarbValue? = nil,
+               adapativeCarbohydrateEffectEnabled: Bool = false)
     {
         let basalRateSchedule = loadBasalRateScheduleFixture("basal_profile")
         let insulinSensitivitySchedule = InsulinSensitivitySchedule(
@@ -174,6 +176,10 @@ class LoopDataManagerTests: XCTestCase {
         doseStore.basalProfileApplyingOverrideHistory = doseStore.basalProfile
         doseStore.sensitivitySchedule = insulinSensitivitySchedule
         let glucoseStore = MockGlucoseStore(for: test)
+        let carbStore = MockCarbStore(for: test)
+        carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
+        carbStore.carbRatioSchedule = carbRatioSchedule
+        carbStore.carbsOnBoard = carbsOnBoard
         
         let currentDate = glucoseStore.latestGlucose!.startDate
         now = currentDate
@@ -182,6 +188,7 @@ class LoopDataManagerTests: XCTestCase {
         carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
         carbStore.carbRatioSchedule = carbRatioSchedule
 
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = adapativeCarbohydrateEffectEnabled
         
         dosingDecisionStore = MockDosingDecisionStore()
         automaticDosingStatus = AutomaticDosingStatus(automaticDosingEnabled: true, isAutomaticDosingAllowed: true)
@@ -197,7 +204,7 @@ class LoopDataManagerTests: XCTestCase {
             carbStore: carbStore,
             dosingDecisionStore: dosingDecisionStore,
             latestStoredSettingsProvider: MockLatestStoredSettingsProvider(),
-            now: { currentDate },
+            now: { glucoseStore.latestGlucose!.startDate },
             pumpInsulinType: .novolog,
             automaticDosingStatus: automaticDosingStatus,
             trustedTimeOffset: { 0 }
@@ -213,6 +220,7 @@ class LoopDataManagerTests: XCTestCase {
         loopDataManager = nil
         UserDefaults.standard.autoBolusCarbsEnabled = false
         UserDefaults.standard.autoBolusCarbsActiveByDefault = false
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = false
     }
 }
 

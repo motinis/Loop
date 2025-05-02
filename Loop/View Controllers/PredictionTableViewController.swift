@@ -73,6 +73,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
     private var totalRetrospectiveCorrection: HKQuantity?
     
     private var negativeInsulinDamper: Double?
+    private var adaptiveCarbohydrateEffectBaseWeight = 1.0
 
     private var refreshContext = RefreshContext.all
 
@@ -133,6 +134,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         _ = self.refreshContext.remove(.status)
         reloadGroup.enter()
         deviceManager.loopManager.getLoopState { (manager, state) in
+            self.adaptiveCarbohydrateEffectBaseWeight = state.adaptiveCarbohydrateEffectBaseWeight
             self.retrospectiveGlucoseDiscrepancies = state.retrospectiveGlucoseDiscrepancies
             totalRetrospectiveCorrection = state.totalRetrospectiveCorrection
             negativeInsulinDamper = state.negativeInsulinDamper
@@ -155,7 +157,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             if self.refreshContext.remove(.targets) != nil {
                 self.glucoseChart.targetGlucoseSchedule = manager.settings.glucoseTargetRangeSchedule
             }
-
+            
             reloadGroup.leave()
         }
 
@@ -274,6 +276,18 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         cell.accessoryType = selectedInputs.contains(input) ? .checkmark : .none
 
         var subtitleText = input.localizedDescription(forGlucoseUnit: glucoseChart.glucoseUnit) ?? ""
+        
+        let aceFormat = NSLocalizedString("Adaptive Carbohydrate Effect: %1$@%%", comment: "Adaptive Carbohydrate Effect - carb weight description")
+        
+        if input == .carbs, 100 * adaptiveCarbohydrateEffectBaseWeight < 99.5 {
+            let formatter = NumberFormatter()
+            formatter.minimumIntegerDigits = 1
+            formatter.maximumSignificantDigits = 2
+            formatter.roundingMode = .halfUp
+                        
+            let aceText = String(format: aceFormat, formatter.string(from: 100 * adaptiveCarbohydrateEffectBaseWeight) ?? "?")
+            subtitleText = String(format: "%@\n%@", subtitleText, aceText)
+        }
 
         if input == .damper, let negativeInsulinDamper = negativeInsulinDamper {
             let formatter = NumberFormatter()
@@ -305,6 +319,17 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             )
             let isIntegralRetrospectiveCorrectionEnabled = UserDefaults.standard.integralRetrospectiveCorrectionEnabled
             
+            var aceText: String
+            if 100 * (1 - adaptiveCarbohydrateEffectBaseWeight) >= 0.5 {
+                let formatter = NumberFormatter()
+                formatter.minimumIntegerDigits = 1
+                formatter.roundingMode = .halfDown
+                
+                aceText = String(format: aceFormat, formatter.string(from: 100 * (1 - adaptiveCarbohydrateEffectBaseWeight)) ?? "?")
+            } else {
+                aceText = ""
+            }
+            
             if isIntegralRetrospectiveCorrectionEnabled {
                 var integralEffectDisplay = "?"
                 var totalEffectDisplay = "?"
@@ -319,10 +344,17 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
                     integralEffectDisplay, totalEffectDisplay
                 )
                 subtitleText = String(format: "%@\n%@", retro, integralRetro)
+                if !aceText.isEmpty {
+                    subtitleText = String(format: "%@\n%@", aceText, subtitleText)
+                }
             } else {
-                subtitleText = String(format: "%@\n%@", subtitleText, retro)
+                if !aceText.isEmpty {
+                    subtitleText = String(format: "%@\n%@\n%@", subtitleText, aceText, retro)
+                } else {
+                    subtitleText = String(format: "%@\n%@", subtitleText, retro)
+                }
+                
             }
-        
         }
 
         cell.subtitleLabel?.text = subtitleText

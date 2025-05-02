@@ -28,6 +28,8 @@ protocol CarbStoreProtocol: AnyObject {
     
     var delta: TimeInterval { get }
     
+    var delay: TimeInterval { get }
+    
     var defaultAbsorptionTimes: CarbStore.DefaultAbsorptionTimes { get }
     
     // MARK: Data Management
