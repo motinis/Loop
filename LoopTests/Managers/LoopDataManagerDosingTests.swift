@@ -53,6 +53,42 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         return try! decoder.decode([PredictedGlucoseValue].self, from: try! Data(contentsOf: url))
     }
     
+    func testFloatingCorrectionRange() {
+        
+        let glucose = SimpleGlucoseValue(startDate: Date(), quantity: HKQuantity(unit: .mgdL, doubleValue: 100))
+        let prevGlucoseDate = glucose.startDate.addingTimeInterval(.minutes(-20))
+        
+        // out of date range:
+        XCTAssertEqual(0.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, HistoricalGlucoseValue(startDate: glucose.startDate.addingTimeInterval(.minutes(-22)), quantity: HKQuantity(unit: .mgdL, doubleValue: 0.0)), false, 0))
+        XCTAssertEqual(0.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, HistoricalGlucoseValue(startDate: glucose.startDate.addingTimeInterval(.minutes(-18)), quantity: HKQuantity(unit: .mgdL, doubleValue: 0.0)), false, 0))
+        
+        // prevGlucose was higher than glucose
+        XCTAssertEqual(0.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 101.0)), false, 0))
+
+        
+        for i in 0...60 {
+            let delta = Double(i)
+            let prevGlucose = HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 100.0 - delta))
+            XCTAssertEqual(delta * delta / 80.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, false, 0.5), accuracy: 1E-6) // weight doesn't matter since noCob
+
+            for w in 0...10 {
+                let weight = Double(w) / 10.0
+                XCTAssertEqual( (1 - weight) * delta * delta / 80.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, true, weight), accuracy: 1E-6)
+            }
+        }
+        
+        for i in 61...100 {
+            let delta = Double(i)
+            let prevGlucose = HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 100.0 - delta))
+            XCTAssertEqual(3 * delta / 4.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, false, 0.5), accuracy: 1E-6) // weight doesn't matter since noCob
+
+            for w in 0...10 {
+                let weight = Double(w) / 10.0
+                XCTAssertEqual( (1 - weight) * 3 * delta / 4.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, true, weight), accuracy: 1E-6)
+            }
+        }
+    }
+    
     func testNegativeInsulinDamper() {
         let marginalSlope = 0.05
         let anchorAlpha = 0.75

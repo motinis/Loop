@@ -12,7 +12,6 @@ import LoopKitUI
 
 public struct AdaptiveCarbohydrateEffectSelectionView: View {
     @Binding var isAdaptiveCarbohydrateEffectEnabled: Bool
-    @Binding var isDisabledWhenBolusingCarbs: Bool
     
     public var body: some View {
         ScrollView {
@@ -23,7 +22,7 @@ public struct AdaptiveCarbohydrateEffectSelectionView: View {
 
                 Divider()
 
-                Text(NSLocalizedString("Adaptive Carbohydrate Effect (ACE) is an extension to the Loop Algorithm. When enabled, ACE allows Loop to respond more dynamically to carb absorption. Each Loop cycle, it calculates the percentage of the carb effect from past meals which should be handled by Retrospective Correction (RC) for the next predicted value. This percentage decays over the next 60 minutes as usual for RC. When Carbs on Board (COB) is 10g or less, this will only be used if the resulting prediction will be less than the standard carb effect.", comment: "Description of Adaptive Carbohydrate Effect toggle."))
+                Text(NSLocalizedString("Adaptive Carbohydrate Effect (ACE) is an extension to the Loop Algorithm. When enabled, ACE allows Loop to respond more dynamically to carb absorption. Each Loop cycle, it calculates the percentage of the carb effect from past meals which should be handled by Retrospective Correction (RC) for the next predicted value. This percentage decays over the next 60 minutes as usual for RC. When Carbs on Board (COB) is 10g or less, this will only be used if the resulting prediction will be less than the standard carb effect. When ACE is enabled, Floating Correction Range (FCR) is automatically applied when there are carbs on board, where the FCR adjustment is multiplied by the ACE percentage.", comment: "Description of Adaptive Carbohydrate Effect toggle."))
                     .foregroundColor(.secondary)
                 Divider()
 
@@ -39,7 +38,7 @@ public struct AdaptiveCarbohydrateEffectSelectionView: View {
 
 struct AdaptiveCarbEffectSelectionView_Previews: PreviewProvider {
     static var previews: some View {
-        AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: .constant(true), isDisabledWhenBolusingCarbs: .constant(true))
+        AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: .constant(true))
     }
 }
 

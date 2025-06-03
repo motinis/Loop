@@ -387,6 +387,17 @@ final class LoopDataManager {
             predictedGlucose = nil
         }
     }
+    
+    private var floatingCorrectionRangeAdjustmentAmount = 0.0 // mgdL
+    
+    private var floatingCorrectionRangeAdjustment: Double? {
+        guard let schedule = settings.glucoseTargetRangeSchedule else {
+            return nil
+        }
+        
+        return HKQuantity(unit: .mgdL, doubleValue: floatingCorrectionRangeAdjustmentAmount).doubleValue(for: schedule.unit)
+    }
+    
     private var negativeInsulinDamperCachedBaseDate: Date = .distantPast
     private var aceCarbsBaseWeight = 1.0
     private var aceBaseWeightedCarbEffects = [[GlucoseEffect]]()
@@ -1291,6 +1302,23 @@ extension LoopDataManager {
             return (transitionValue + marginalSlope * (posDeltaSum - transitionPoint)) / posDeltaSum
         }
     }
+    
+    static func calculateFloatingCorrectionRangeAdjument(_ glucose: GlucoseValue, _ prevGlucose: HistoricalGlucoseValue, _ hasCob: Bool, _ aceCarbsBaseWeight: Double) -> Double {
+        guard abs(glucose.startDate.timeIntervalSince(prevGlucose.startDate).minutes - 20) <= 1 else {
+            return 0
+        }
+        
+        let weight = hasCob ? min(1, 1 - aceCarbsBaseWeight) : 1
+        let delta = glucose.quantity.doubleValue(for: HKUnit.mgdL) - prevGlucose.quantity.doubleValue(for: HKUnit.mgdL)
+        
+        guard delta > 0, weight > 0 else {
+            return 0
+        }
+                
+        // continuous function (but not smooth): delta*delta/80 = 3/4*delta when delta=60.
+        // for delta < 60, this reduces the size of the adjustment. e.g. 20 -> 5, 30 -> 11.25, 40 --> 20
+        return weight * (delta < 60 ? delta * delta / 80 : 3 * delta / 4)
+    }
 
     private func notify(forChange context: LoopUpdateContext) {
         NotificationCenter.default.post(name: .LoopDataUpdated,
@@ -1896,23 +1924,15 @@ extension LoopDataManager {
             }
         }
        
-        func glucoseTargetsOverride(_ schedule: GlucoseRangeSchedule, _ startingGlucose: HKQuantity) -> GlucoseRangeSchedule{
+        func glucoseTargetsOverride(_ schedule: GlucoseRangeSchedule, _ startingGlucose: HKQuantity, _ floatingAdjustment: Double) -> GlucoseRangeSchedule{
             switch self {
-            case .standard: return schedule
+            case .standard: return schedule.adjustedByAmount(floatingAdjustment)
             case .cobBreakdown:
                 let target = startingGlucose.doubleValue(for: .milligramsPerDeciliter)
                 return GlucoseRangeSchedule(unit: .milligramsPerDeciliter,
                                            dailyItems: [RepeatingScheduleValue(startTime: TimeInterval(0), value: DoubleRange(minValue: target, maxValue: target))])!
-            default: return adjustSchedule(schedule, amount: self.targetsAdjustment)
+            default: return schedule.adjustedByAmount(self.targetsAdjustment + floatingAdjustment)
             }
-        }
-        
-        private func adjustSchedule(_ schedule: GlucoseRangeSchedule, amount: Double) -> GlucoseRangeSchedule {
-            return GlucoseRangeSchedule(unit: schedule.unit,
-                                        dailyItems: schedule.items.map{scheduleValue in
-                                                scheduleValue.map{range in
-                                                    DoubleRange(minValue: range.minValue + amount, maxValue: range.maxValue + amount)}},
-                                        timeZone: schedule.timeZone)!
         }
     }
 
@@ -1993,9 +2013,9 @@ extension LoopDataManager {
         }
 
         let model = doseStore.insulinModelProvider.model(for: pumpInsulinType)
-
+        
         return predictedGlucose.recommendedManualBolus(
-            to: usage.glucoseTargetsOverride(glucoseTargetRange, startingGlucose),
+            to: usage.glucoseTargetsOverride(glucoseTargetRange, startingGlucose, floatingCorrectionRangeAdjustment!),
             at: now(),
             suspendThreshold: usage.suspendThresholdOverride(settings.suspendThreshold?.quantity),
             sensitivity: insulinSensitivity,
@@ -2016,6 +2036,29 @@ extension LoopDataManager {
 
         return filteredCarbEffect.last!.quantity.doubleValue(for: .mgdL) - filteredCarbEffect.first!.quantity.doubleValue(for: .mgdL)
     }
+    
+    private func updateFloatingCorrectionRangeAdjustment() {
+        dispatchPrecondition(condition: .onQueue(dataAccessQueue))
+        
+        let hasCob = (carbsOnBoard?.value ?? 0) > 0
+        
+        guard (UserDefaults.standard.floatingCorrectionRangeEnabled && !hasCob) || (UserDefaults.standard.adaptiveCarbohydrateEffectEnabled && hasCob) else {
+            floatingCorrectionRangeAdjustmentAmount = 0
+            return
+        }
+        
+        guard let historicalGlucose = historicalGlucose, let glucose = self.glucoseStore.latestGlucose else {
+            floatingCorrectionRangeAdjustmentAmount = 0
+            return
+        }
+        
+        guard let prevGlucose = historicalGlucose.filterDateRange(glucose.startDate.addingTimeInterval(.minutes(-21)), glucose.startDate.addingTimeInterval(.minutes(-19))).min(by: {$0.startDate < $1.startDate}) else {
+            floatingCorrectionRangeAdjustmentAmount = 0
+            return
+        }
+                        
+        floatingCorrectionRangeAdjustmentAmount = Self.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, hasCob, aceCarbsBaseWeight)
+    }
 
     /// Generates a correction effect based on how large the discrepancy is between the current glucose and its model predicted value.
     ///
@@ -2030,6 +2073,7 @@ extension LoopDataManager {
             
             aceCarbsBaseWeight = 1
             aceBaseWeightedCarbEffects.removeAll()
+            updateFloatingCorrectionRangeAdjustment()
             
             throw LoopError.missingDataError(.carbEffect)
         }
@@ -2040,6 +2084,7 @@ extension LoopDataManager {
             
             aceCarbsBaseWeight = 1
             aceBaseWeightedCarbEffects.removeAll(keepingCapacity: true)
+            updateFloatingCorrectionRangeAdjustment()
             
             throw LoopError.missingDataError(.glucose)
         }
@@ -2067,6 +2112,7 @@ extension LoopDataManager {
         guard UserDefaults.standard.adaptiveCarbohydrateEffectEnabled, cob > 0, let historicalGlucose = historicalGlucose, retrospectiveGlucoseEffect.count > 1, !carbEffects.isEmpty else {
             aceCarbsBaseWeight = 1
             aceBaseWeightedCarbEffects.removeAll()
+            updateFloatingCorrectionRangeAdjustment()
 
             return
         }
@@ -2077,6 +2123,7 @@ extension LoopDataManager {
             
             aceCarbsBaseWeight = 1
             aceBaseWeightedCarbEffects.removeAll()
+            updateFloatingCorrectionRangeAdjustment()
             
             return
         }
@@ -2114,6 +2161,7 @@ extension LoopDataManager {
         guard prevRetroEffect.count > 1, prevNoCarbsRetroEffect.count > 1 else {
             aceCarbsBaseWeight = 1
             aceBaseWeightedCarbEffects.removeAll()
+            updateFloatingCorrectionRangeAdjustment()
             return
         }
         // note that retrospectiveGlucoseEffects and carbEffects are aligned to 5 minutes on the clock (e.g. 00:05 00:10, etc.)
@@ -2138,11 +2186,13 @@ extension LoopDataManager {
         guard noCarbsPrediction != carbsPrediction && (cob > 10 || noCarbsPrediction < carbsPrediction) else {
             aceCarbsBaseWeight = 1
             aceBaseWeightedCarbEffects.removeAll()
+            updateFloatingCorrectionRangeAdjustment()
             return
         }
 
         aceCarbsBaseWeight = max(0, min(1, (value - noCarbsPrediction) / (carbsPrediction - noCarbsPrediction)))
         aceBaseWeightedCarbEffects.removeAll()
+        updateFloatingCorrectionRangeAdjustment()
 
         guard aceCarbsBaseWeight < 1 else {
             return
@@ -2296,7 +2346,7 @@ extension LoopDataManager {
         
         let maxBolus = settings.maximumBolus!
         let maxBasal = settings.maximumBasalRatePerHour!
-        
+                
         switch dosingStrategy {
         case .automaticBolus:
             let correctionRangeSchedule = settings.effectiveGlucoseTargetRangeSchedule()
@@ -2324,7 +2374,7 @@ extension LoopDataManager {
             let maxAutomaticBolus = min(iobHeadroom, maxBolus * min(effectiveBolusApplicationFactor, 1.0))
             
             return predictedGlucose.recommendedAutomaticDose(
-                to: glucoseTargetRange!,
+                to: glucoseTargetRange!.adjustedByAmount(floatingCorrectionRangeAdjustment!),
                 at: predictedGlucose[0].startDate,
                 suspendThreshold: settings.suspendThreshold?.quantity,
                 sensitivity: insulinSensitivity!,
@@ -2342,7 +2392,7 @@ extension LoopDataManager {
         case .tempBasalOnly:
             
             let temp = predictedGlucose.recommendedTempBasal(
-                to: glucoseTargetRange!,
+                to: glucoseTargetRange!.adjustedByAmount(floatingCorrectionRangeAdjustment!),
                 at: predictedGlucose[0].startDate,
                 suspendThreshold: settings.suspendThreshold?.quantity,
                 sensitivity: insulinSensitivity!,
@@ -2636,11 +2686,14 @@ protocol LoopState {
 
     /// The total corrective glucose effect from retrospective correction
     var totalRetrospectiveCorrection: HKQuantity? { get }
-    
+        
     /// The negative insulin damper - if present then is in the range [0,1]
     var negativeInsulinDamper: Double? { get}
     /// The weight assigned to the standard carbs effect when using ACE
     var adaptiveCarbohydrateEffectBaseWeight: Double { get }
+    
+    /// The adjustment made by floating correction range. The implicit units are the same used by the glucose range schedule. If there is no schedule, then returns nil.
+    var floatingCorrectionRangeAdjustment: Double? { get }
 
     /// Calculates a new prediction from the current data using the specified effect inputs
     ///
@@ -2773,6 +2826,11 @@ extension LoopDataManager {
         var negativeInsulinDamper: Double? {
             dispatchPrecondition(condition: .onQueue(loopDataManager.dataAccessQueue))
             return loopDataManager.negativeInsulinDamper
+        }
+        
+        var floatingCorrectionRangeAdjustment: Double? {
+            dispatchPrecondition(condition: .onQueue(loopDataManager.dataAccessQueue))
+            return loopDataManager.floatingCorrectionRangeAdjustment
         }
 
         func predictGlucose(using inputs: PredictionInputEffect, potentialBolus: DoseEntry?, potentialCarbEntry: NewCarbEntry?, replacingCarbEntry replacedCarbEntry: StoredCarbEntry?, includingPendingInsulin: Bool, considerPositiveVelocityAndRC: Bool) throws -> [PredictedGlucoseValue] {
@@ -3294,4 +3352,15 @@ extension LoopDataManager: ServicesManagerDelegate {
         }
     }
     
+}
+
+extension GlucoseRangeSchedule {
+    
+    fileprivate func adjustedByAmount(_ amount: Double) -> GlucoseRangeSchedule {
+        return GlucoseRangeSchedule(unit: unit,
+                                    dailyItems: items.map{scheduleValue in
+                                            scheduleValue.map{range in
+                                                DoubleRange(minValue: range.minValue + amount, maxValue: range.maxValue + amount)}},
+                                    timeZone: timeZone)!
+    }
 }

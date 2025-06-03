@@ -49,7 +49,9 @@ public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.AutoBolusCarbsActiveByDefault.rawValue) private var autoBolusCarbsActiveByDefault = false
 
     @AppStorage(UserDefaults.Key.AdaptiveCarbohydrateEffectEnabled.rawValue) private var isAdaptiveCarbohydrateEffectEnabled = false
-    @AppStorage(UserDefaults.Key.AdaptiveCarbohydrateEffectDisabledWhenBolusingCarbs.rawValue) private var isAdaptiveCarbohydrateEffectDisableWhenBolusingCarbs = false
+    
+    @AppStorage(UserDefaults.Key.FloatingCorrectionRangeEnabled.rawValue) private var isFloatingCorrectionRangeEnabled = false
+    
     var automaticDosingStrategy: AutomaticDosingStrategy
     var sleepSchedule: SleepSchedule?
 
@@ -90,10 +92,15 @@ public struct ExperimentsSettingsView: View {
                         name: NSLocalizedString("Auto-Bolus Carbs", comment: "Title of auto-bolus carbs experiment"),
                         enabled: isAutoBolusCarbsEnabled)
                 }
-                NavigationLink(destination: AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: $isAdaptiveCarbohydrateEffectEnabled, isDisabledWhenBolusingCarbs: $isAdaptiveCarbohydrateEffectDisableWhenBolusingCarbs)) {
+                NavigationLink(destination: AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: $isAdaptiveCarbohydrateEffectEnabled)) {
                     ExperimentRow(
                         name: NSLocalizedString("Adaptive Carbohydrate Effect", comment: "Title of adaptive carbohydrate effect experiment"),
                         enabled: isAdaptiveCarbohydrateEffectEnabled)
+                }
+                NavigationLink(destination: FloatingCorrectionRangeEnabledSelectionView(isFloatingCorrectionRangeEnabled: $isFloatingCorrectionRangeEnabled)) {
+                    ExperimentRow(
+                        name: NSLocalizedString("Floating Correction Range", comment: "Title of floating correction range experiment"),
+                        enabled: isFloatingCorrectionRangeEnabled)
                 }
                 Spacer()
             }
@@ -131,7 +138,7 @@ extension UserDefaults {
         case AutoBolusCarbsEnabled = "com.loopkit.algorithmExperiments.autoBolusCarbsEnabled"
         case AutoBolusCarbsActiveByDefault = "com.loopkit.algorithmExperiments.autoBolusCarbsActiveByDefault"
         case AdaptiveCarbohydrateEffectEnabled = "com.loopkit.algorithmExperiments.adaptiveCarbohydrateEffectEnabled"
-        case AdaptiveCarbohydrateEffectDisabledWhenBolusingCarbs = "com.loopkit.algorithmExperiments.adaptiveCarbohydrateEffectDisableWhenBolusingCarbs"
+        case FloatingCorrectionRangeEnabled = "com.loopkit.algorithmExperiments.floatingCorrectionRangeEnabled"
     }
 
     var glucoseBasedApplicationFactorEnabled: Bool {
@@ -193,6 +200,15 @@ extension UserDefaults {
         }
         set {
             set(newValue, forKey: Key.AdaptiveCarbohydrateEffectEnabled.rawValue)
+        }
+    }
+    
+    var floatingCorrectionRangeEnabled: Bool {
+        get {
+            bool(forKey: Key.FloatingCorrectionRangeEnabled.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.FloatingCorrectionRangeEnabled.rawValue)
         }
     }
 }
