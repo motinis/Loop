@@ -46,7 +46,7 @@ public struct FloatingCorrectionRangeEnabledSelectionView: View {
 
                 Text(NSLocalizedString("Floating Correction Range (FCR) is an extension to the Loop Algorithm. When enabled, FCR adjusts the correction range up (beyond any changes made by overrides) when glucose has increased over the previous 20 minutes. This can prevent Loop from correcting too aggressively when handling transient spikes. The adjustment is dependent on how much glucose has increased, and will not exceed 3/4 of the increase. This adjustment only applies when there are no carbs on board.", comment: "Description of Floating Correction Range toggle."))
                     .foregroundColor(.secondary)
-                Text(NSLocalizedString("By default, FCR does not apply when sleeping, since spikes are less likely to be transient.", comment: "Description of Floating Correction Range enabled when asleep toggle."))
+                Text(NSLocalizedString("FCR may also be additionally enabled when sleeping. By default, it is not enabled since spikes are less likely to be transient when asleep.", comment: "Description of Floating Correction Range enabled when asleep toggle."))
                     .foregroundColor(.secondary)
                 Divider()
 
