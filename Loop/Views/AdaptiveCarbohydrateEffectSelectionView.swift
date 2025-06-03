@@ -26,7 +26,7 @@ public struct AdaptiveCarbohydrateEffectSelectionView: View {
                     .foregroundColor(.secondary)
                 Divider()
 
-                Toggle(NSLocalizedString("Enable Adaptive Carbohydrate Effect", comment: "Title for Adaptive Carbohydrate Effect toggle"), isOn: $isAdaptiveCarbohydrateEffectEnabled)
+                Toggle(NSLocalizedString("🚧 Enable Adaptive Carbohydrate Effect", comment: "Title for Adaptive Carbohydrate Effect toggle"), isOn: $isAdaptiveCarbohydrateEffectEnabled)
                     .padding(.top, 20)
             }
             .padding()
