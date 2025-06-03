@@ -2046,7 +2046,7 @@ extension LoopDataManager {
             floatingCorrectionRangeAdjustmentAmount = 0
             return
         }
-        
+                
         guard let historicalGlucose = historicalGlucose, let glucose = self.glucoseStore.latestGlucose else {
             floatingCorrectionRangeAdjustmentAmount = 0
             return
@@ -2056,6 +2056,12 @@ extension LoopDataManager {
             floatingCorrectionRangeAdjustmentAmount = 0
             return
         }
+        
+        guard UserDefaults.standard.floatingCorrectionRangeEnabledWhenAsleep || settings.sleepSchedule?.isAsleep(at: glucose.startDate) != true else {
+            floatingCorrectionRangeAdjustmentAmount = 0
+            return
+        }
+
                         
         floatingCorrectionRangeAdjustmentAmount = Self.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, hasCob, aceCarbsBaseWeight)
     }

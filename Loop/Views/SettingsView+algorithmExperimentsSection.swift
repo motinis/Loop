@@ -51,6 +51,7 @@ public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.AdaptiveCarbohydrateEffectEnabled.rawValue) private var isAdaptiveCarbohydrateEffectEnabled = false
     
     @AppStorage(UserDefaults.Key.FloatingCorrectionRangeEnabled.rawValue) private var isFloatingCorrectionRangeEnabled = false
+    @AppStorage(UserDefaults.Key.FloatingCorrectionRangeEnabledWhenAsleep.rawValue) private var isFloatingCorrectionRangeEnabledWhenAsleep = false
     
     var automaticDosingStrategy: AutomaticDosingStrategy
     var sleepSchedule: SleepSchedule?
@@ -97,7 +98,7 @@ public struct ExperimentsSettingsView: View {
                         name: NSLocalizedString("Adaptive Carbohydrate Effect", comment: "Title of adaptive carbohydrate effect experiment"),
                         enabled: isAdaptiveCarbohydrateEffectEnabled)
                 }
-                NavigationLink(destination: FloatingCorrectionRangeEnabledSelectionView(isFloatingCorrectionRangeEnabled: $isFloatingCorrectionRangeEnabled)) {
+                NavigationLink(destination: FloatingCorrectionRangeEnabledSelectionView(isFloatingCorrectionRangeEnabled: $isFloatingCorrectionRangeEnabled, isFloatingCorrectionRangeEnabledWhenAsleep: $isFloatingCorrectionRangeEnabledWhenAsleep, sleepSchedule: sleepSchedule)) {
                     ExperimentRow(
                         name: NSLocalizedString("Floating Correction Range", comment: "Title of floating correction range experiment"),
                         enabled: isFloatingCorrectionRangeEnabled)
@@ -139,6 +140,7 @@ extension UserDefaults {
         case AutoBolusCarbsActiveByDefault = "com.loopkit.algorithmExperiments.autoBolusCarbsActiveByDefault"
         case AdaptiveCarbohydrateEffectEnabled = "com.loopkit.algorithmExperiments.adaptiveCarbohydrateEffectEnabled"
         case FloatingCorrectionRangeEnabled = "com.loopkit.algorithmExperiments.floatingCorrectionRangeEnabled"
+        case FloatingCorrectionRangeEnabledWhenAsleep = "com.loopkit.algorithmExperiments.floatingCorrectionRangeEnabledWhenAsleep"
     }
 
     var glucoseBasedApplicationFactorEnabled: Bool {
@@ -211,4 +213,14 @@ extension UserDefaults {
             set(newValue, forKey: Key.FloatingCorrectionRangeEnabled.rawValue)
         }
     }
+    
+    var floatingCorrectionRangeEnabledWhenAsleep: Bool {
+        get {
+            bool(forKey: Key.FloatingCorrectionRangeEnabledWhenAsleep.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.FloatingCorrectionRangeEnabledWhenAsleep.rawValue)
+        }
+    }
+
 }
