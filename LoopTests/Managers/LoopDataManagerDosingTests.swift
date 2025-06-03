@@ -53,6 +53,42 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         return try! decoder.decode([PredictedGlucoseValue].self, from: try! Data(contentsOf: url))
     }
     
+    func testFloatingCorrectionRange() {
+        
+        let glucose = SimpleGlucoseValue(startDate: Date(), quantity: HKQuantity(unit: .mgdL, doubleValue: 100))
+        let prevGlucoseDate = glucose.startDate.addingTimeInterval(.minutes(-20))
+        
+        // out of date range:
+        XCTAssertEqual(0.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, HistoricalGlucoseValue(startDate: glucose.startDate.addingTimeInterval(.minutes(-22)), quantity: HKQuantity(unit: .mgdL, doubleValue: 0.0)), false, 0))
+        XCTAssertEqual(0.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, HistoricalGlucoseValue(startDate: glucose.startDate.addingTimeInterval(.minutes(-18)), quantity: HKQuantity(unit: .mgdL, doubleValue: 0.0)), false, 0))
+        
+        // prevGlucose was higher than glucose
+        XCTAssertEqual(0.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 101.0)), false, 0))
+
+        
+        for i in 0...60 {
+            let delta = Double(i)
+            let prevGlucose = HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 100.0 - delta))
+            XCTAssertEqual(delta * delta / 80.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, false, 0.5), accuracy: 1E-6) // weight doesn't matter since noCob
+
+            for w in 0...10 {
+                let weight = Double(w) / 10.0
+                XCTAssertEqual( (1 - weight) * delta * delta / 80.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, true, weight), accuracy: 1E-6)
+            }
+        }
+        
+        for i in 61...100 {
+            let delta = Double(i)
+            let prevGlucose = HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 100.0 - delta))
+            XCTAssertEqual(3 * delta / 4.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, false, 0.5), accuracy: 1E-6) // weight doesn't matter since noCob
+
+            for w in 0...10 {
+                let weight = Double(w) / 10.0
+                XCTAssertEqual( (1 - weight) * 3 * delta / 4.0, LoopDataManager.calculateFloatingCorrectionRangeAdjument(glucose, prevGlucose, true, weight), accuracy: 1E-6)
+            }
+        }
+    }
+    
     func testNegativeInsulinDamper() {
         let marginalSlope = 0.05
         let anchorAlpha = 0.75
@@ -186,6 +222,417 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
             XCTAssertEqual(expected.startDate, calculated.startDate)
             XCTAssertEqual(expected.quantity.doubleValue(for: .milligramsPerDeciliter), calculated.quantity.doubleValue(for: .milligramsPerDeciliter), accuracy: defaultAccuracy)
         }
+    }
+
+    
+    func testACENoCarbsForecastFromLiveCaptureInputData() {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let url = bundle.url(forResource: "live_capture_input", withExtension: "json")!
+        let predictionInput = try! decoder.decode(LoopPredictionInput.self, from: try! Data(contentsOf: url))
+
+        // Therapy settings in the "live capture" input only have one value, so we can fake some schedules
+        // from the first entry of each therapy setting's history.
+        let basalRateSchedule = BasalRateSchedule(dailyItems: [
+            RepeatingScheduleValue(startTime: 0, value: predictionInput.settings.basal.first!.value)
+        ])
+        let insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [
+                RepeatingScheduleValue(startTime: 0, value: predictionInput.settings.sensitivity.first!.value.doubleValue(for: .milligramsPerDeciliter))
+            ],
+            timeZone: .utcTimeZone
+        )!
+        let carbRatioSchedule = CarbRatioSchedule(
+            unit: .gram(),
+            dailyItems: [
+                RepeatingScheduleValue(startTime: 0.0, value: predictionInput.settings.carbRatio.first!.value)
+            ],
+            timeZone: .utcTimeZone
+        )!
+
+        let settings = LoopSettings(
+            dosingEnabled: false,
+            glucoseTargetRangeSchedule: glucoseTargetRangeSchedule,
+            insulinSensitivitySchedule: insulinSensitivitySchedule,
+            basalRateSchedule: basalRateSchedule,
+            carbRatioSchedule: carbRatioSchedule,
+            maximumBasalRatePerHour: 10,
+            maximumBolus: 5,
+            suspendThreshold: predictionInput.settings.suspendThreshold,
+            automaticDosingStrategy: .automaticBolus
+        )
+
+        let glucoseStore = MockGlucoseStore()
+        glucoseStore.storedGlucose = predictionInput.glucoseHistory
+
+        let currentDate = glucoseStore.latestGlucose!.startDate
+        now = currentDate
+
+        let doseStore = MockDoseStore()
+        doseStore.basalProfile = basalRateSchedule
+        doseStore.basalProfileApplyingOverrideHistory = doseStore.basalProfile
+        doseStore.sensitivitySchedule = insulinSensitivitySchedule
+        doseStore.doseHistory = predictionInput.doses
+        doseStore.lastAddedPumpData = predictionInput.doses.last!.startDate
+        let carbStore = MockCarbStore()
+        carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
+        carbStore.carbRatioSchedule = carbRatioSchedule
+        carbStore.carbRatioScheduleApplyingOverrideHistory = carbRatioSchedule
+        carbStore.carbHistory = predictionInput.carbEntries
+        
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = true
+        // for this scenario ACE NoCarbs has the lower prediction and is more accurate, so just need COB > 0
+        carbStore.carbsOnBoard = CarbValue(startDate: currentDate, value: 1)
+
+        dosingDecisionStore = MockDosingDecisionStore()
+        automaticDosingStatus = AutomaticDosingStatus(automaticDosingEnabled: true, isAutomaticDosingAllowed: true)
+        loopDataManager = LoopDataManager(
+            lastLoopCompleted: currentDate,
+            basalDeliveryState: .active(currentDate),
+            settings: settings,
+            overrideHistory: TemporaryScheduleOverrideHistory(),
+            analyticsServicesManager: AnalyticsServicesManager(),
+            localCacheDuration: .days(1),
+            doseStore: doseStore,
+            glucoseStore: glucoseStore,
+            carbStore: carbStore,
+            dosingDecisionStore: dosingDecisionStore,
+            latestStoredSettingsProvider: MockLatestStoredSettingsProvider(),
+            now: { currentDate },
+            pumpInsulinType: .novolog,
+            automaticDosingStatus: automaticDosingStatus,
+            trustedTimeOffset: { 0 }
+        )
+        
+        
+        let replacedCarbEntry = carbStore.carbHistory?.max{ a, b in a.startDate < b.startDate }
+        let latestGlucoseDate = currentDate.addingTimeInterval(.minutes(5))
+
+        let minutesDiff = -45...5
+        var predictions = [[Double]]()
+        
+        let updateGroup = DispatchGroup()
+        updateGroup.enter()
+        self.loopDataManager.getLoopState { _, _ in
+            // this establishes the first prediction - after which we want to do our next prediction which should be for NoCarbs
+            glucoseStore.storedGlucose?.append(StoredGlucoseSample(startDate: latestGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 182)))
+            NotificationCenter.default.post(name: GlucoseStore.glucoseSamplesDidChange, object: glucoseStore)
+
+            self.loopDataManager.getLoopState { _, state in
+                for diff in minutesDiff {
+                    do {
+                        let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 10), startDate: latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))), foodType: nil, absorptionTime: .hours(3))
+                        let prediction = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: carbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
+                        
+                        predictions.append(prediction.map{$0.quantity.doubleValue(for: .mgdL)})
+                    } catch {
+                    }
+                }
+                updateGroup.leave()
+            }
+        }
+        // We need to wait until the task completes to get outputs
+        updateGroup.wait()
+        
+        let totalAbsorptionTime = 1.5 * .hours(3)
+
+        var unweightedDiffs = [Double]()
+        for (index, diff) in minutesDiff.enumerated() {
+            let weight = max(0, min(1.0, 1.0 + (Double(diff) + 10)/30))
+            let carbEffectStart = latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))).addingTimeInterval(carbStore.delay)
+            let absorbedTimeBeforeStart = latestGlucoseDate.addingTimeInterval(.minutes(weight == 0 ? 5 : 0)).timeIntervalSince(carbEffectStart)
+            let weightAdjustment = 1 - max(0, min(1, absorbedTimeBeforeStart / totalAbsorptionTime))
+            
+            let prediction = predictions[index]
+            var prevValue = prediction[0]
+            
+            if weight == 1.0 {
+                unweightedDiffs.append( (prediction.last! - prediction.first!) / weightAdjustment)
+            } else {
+                var sumDelta = 0.0
+                var deltaWeight = weight
+                let deltaSlope = (1 - weight) * 5.0/60 // 5-minute intervals, and retrospective is over 1 hour
+                
+                for (i, value) in prediction.enumerated() {
+                    if i == 0 {
+                        continue
+                    }
+                    let delta = value - prevValue
+                    XCTAssertGreaterThanOrEqual(delta, 0.0)
+                    if i == 1, deltaWeight == 0 {
+                        XCTAssertEqual(0.0, delta)
+                    } else {
+                        sumDelta += delta / deltaWeight
+                    }
+                                        
+                    deltaWeight = min(1.0, deltaWeight + deltaSlope)
+                    prevValue = value
+                }
+                
+                unweightedDiffs.append(sumDelta / weightAdjustment)
+            }
+        }
+        
+        XCTAssertEqual(unweightedDiffs.min()!, unweightedDiffs.max()!, accuracy: 1E-9)
+    }
+    
+    func testACEAverageCarbsForecastFromLiveCaptureInputData() {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let url = bundle.url(forResource: "live_capture_input", withExtension: "json")!
+        let predictionInput = try! decoder.decode(LoopPredictionInput.self, from: try! Data(contentsOf: url))
+
+        // Therapy settings in the "live capture" input only have one value, so we can fake some schedules
+        // from the first entry of each therapy setting's history.
+        let basalRateSchedule = BasalRateSchedule(dailyItems: [
+            RepeatingScheduleValue(startTime: 0, value: predictionInput.settings.basal.first!.value)
+        ])
+        let insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [
+                RepeatingScheduleValue(startTime: 0, value: predictionInput.settings.sensitivity.first!.value.doubleValue(for: .milligramsPerDeciliter))
+            ],
+            timeZone: .utcTimeZone
+        )!
+        let carbRatioSchedule = CarbRatioSchedule(
+            unit: .gram(),
+            dailyItems: [
+                RepeatingScheduleValue(startTime: 0.0, value: predictionInput.settings.carbRatio.first!.value)
+            ],
+            timeZone: .utcTimeZone
+        )!
+
+        let settings = LoopSettings(
+            dosingEnabled: false,
+            glucoseTargetRangeSchedule: glucoseTargetRangeSchedule,
+            insulinSensitivitySchedule: insulinSensitivitySchedule,
+            basalRateSchedule: basalRateSchedule,
+            carbRatioSchedule: carbRatioSchedule,
+            maximumBasalRatePerHour: 10,
+            maximumBolus: 5,
+            suspendThreshold: predictionInput.settings.suspendThreshold,
+            automaticDosingStrategy: .automaticBolus
+        )
+
+        let glucoseStore = MockGlucoseStore()
+        glucoseStore.storedGlucose = predictionInput.glucoseHistory
+
+        let currentDate = glucoseStore.latestGlucose!.startDate
+        now = currentDate
+
+        let doseStore = MockDoseStore()
+        doseStore.basalProfile = basalRateSchedule
+        doseStore.basalProfileApplyingOverrideHistory = doseStore.basalProfile
+        doseStore.sensitivitySchedule = insulinSensitivitySchedule
+        doseStore.doseHistory = predictionInput.doses
+        doseStore.lastAddedPumpData = predictionInput.doses.last!.startDate
+        let carbStore = MockCarbStore()
+        carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
+        carbStore.carbRatioSchedule = carbRatioSchedule
+        carbStore.carbRatioScheduleApplyingOverrideHistory = carbRatioSchedule
+        carbStore.carbHistory = predictionInput.carbEntries
+        
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = true
+        // for this scenario ACE NoCarbs has the lower prediction and is more accurate, so just need COB > 0
+        carbStore.carbsOnBoard = CarbValue(startDate: currentDate, value: 1)
+
+        dosingDecisionStore = MockDosingDecisionStore()
+        automaticDosingStatus = AutomaticDosingStatus(automaticDosingEnabled: true, isAutomaticDosingAllowed: true)
+        loopDataManager = LoopDataManager(
+            lastLoopCompleted: currentDate,
+            basalDeliveryState: .active(currentDate),
+            settings: settings,
+            overrideHistory: TemporaryScheduleOverrideHistory(),
+            analyticsServicesManager: AnalyticsServicesManager(),
+            localCacheDuration: .days(1),
+            doseStore: doseStore,
+            glucoseStore: glucoseStore,
+            carbStore: carbStore,
+            dosingDecisionStore: dosingDecisionStore,
+            latestStoredSettingsProvider: MockLatestStoredSettingsProvider(),
+            now: { currentDate },
+            pumpInsulinType: .novolog,
+            automaticDosingStatus: automaticDosingStatus,
+            trustedTimeOffset: { 0 }
+        )
+        
+        
+        let replacedCarbEntry = carbStore.carbHistory?.max{ a, b in a.startDate < b.startDate }
+        let latestGlucoseDate = currentDate.addingTimeInterval(.minutes(5))
+
+        let minutesDiff = -45...5
+        var predictions = [[Double]]()
+        var aceBaseWeight: Double = .nan
+        
+        let targetValue = 0.5 * (188.09812579780018 + 196.63016912850532) // average of noCarbs and carbs predictions from previous cycle
+        
+        let updateGroup = DispatchGroup()
+        updateGroup.enter()
+        self.loopDataManager.getLoopState { _, _ in
+            // this establishes the first prediction - after which we want to do our next prediction which should be for NoCarbs
+            glucoseStore.storedGlucose?.append(StoredGlucoseSample(startDate: latestGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: targetValue)))
+            NotificationCenter.default.post(name: GlucoseStore.glucoseSamplesDidChange, object: glucoseStore)
+
+            self.loopDataManager.getLoopState { _, state in
+                aceBaseWeight = state.adaptiveCarbohydrateEffectBaseWeight
+                for diff in minutesDiff {
+                    do {
+                        let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 10), startDate: latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))), foodType: nil, absorptionTime: .hours(3))
+                        let prediction = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: carbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
+                        
+                        predictions.append(prediction.map{$0.quantity.doubleValue(for: .mgdL)})
+                    } catch {
+                    }
+                }
+                updateGroup.leave()
+            }
+        }
+        // We need to wait until the task completes to get outputs
+        updateGroup.wait()
+        
+        XCTAssertEqual(0.5, aceBaseWeight, accuracy: 1E-9)
+        
+        let totalAbsorptionTime = 1.5 * .hours(3)
+
+        var unweightedDiffs = [Double]()
+        for (index, diff) in minutesDiff.enumerated() {
+            let weight = aceBaseWeight + (1 - aceBaseWeight) * max(0, min(1.0, 1.0 + (Double(diff) + 10)/30))
+            let carbEffectStart = latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))).addingTimeInterval(carbStore.delay)
+            let absorbedTimeBeforeStart = latestGlucoseDate.addingTimeInterval(.minutes(weight == 0 ? 5 : 0)).timeIntervalSince(carbEffectStart)
+            let weightAdjustment = 1 - max(0, min(1, absorbedTimeBeforeStart / totalAbsorptionTime))
+            
+            let prediction = predictions[index]
+            var prevValue = prediction[0]
+            
+            if weight == 1.0 {
+                unweightedDiffs.append( (prediction.last! - prediction.first!) / weightAdjustment)
+            } else {
+                var sumDelta = 0.0
+                var deltaWeight = weight
+                let deltaSlope = (1 - weight) * 5.0/60 // 5-minute intervals, and retrospective is over 1 hour
+                
+                for (i, value) in prediction.enumerated() {
+                    if i == 0 {
+                        continue
+                    }
+                    let delta = value - prevValue
+                    XCTAssertGreaterThanOrEqual(delta, 0.0)
+                    if i == 1, deltaWeight == 0 {
+                        XCTAssertEqual(0.0, delta)
+                    } else {
+                        sumDelta += delta / deltaWeight
+                    }
+                                        
+                    deltaWeight = min(1.0, deltaWeight + deltaSlope)
+                    prevValue = value
+                }
+                
+                unweightedDiffs.append(sumDelta / weightAdjustment)
+            }
+        }
+        
+        XCTAssertEqual(unweightedDiffs.min()!, unweightedDiffs.max()!, accuracy: 1E-9)
+    }
+    
+    func testACECarbsForecastFromLiveCaptureInputData() {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let url = bundle.url(forResource: "live_capture_input", withExtension: "json")!
+        let predictionInput = try! decoder.decode(LoopPredictionInput.self, from: try! Data(contentsOf: url))
+
+        // Therapy settings in the "live capture" input only have one value, so we can fake some schedules
+        // from the first entry of each therapy setting's history.
+        let basalRateSchedule = BasalRateSchedule(dailyItems: [
+            RepeatingScheduleValue(startTime: 0, value: predictionInput.settings.basal.first!.value)
+        ])
+        let insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [
+                RepeatingScheduleValue(startTime: 0, value: predictionInput.settings.sensitivity.first!.value.doubleValue(for: .milligramsPerDeciliter))
+            ],
+            timeZone: .utcTimeZone
+        )!
+        let carbRatioSchedule = CarbRatioSchedule(
+            unit: .gram(),
+            dailyItems: [
+                RepeatingScheduleValue(startTime: 0.0, value: predictionInput.settings.carbRatio.first!.value)
+            ],
+            timeZone: .utcTimeZone
+        )!
+
+        let settings = LoopSettings(
+            dosingEnabled: false,
+            glucoseTargetRangeSchedule: glucoseTargetRangeSchedule,
+            insulinSensitivitySchedule: insulinSensitivitySchedule,
+            basalRateSchedule: basalRateSchedule,
+            carbRatioSchedule: carbRatioSchedule,
+            maximumBasalRatePerHour: 10,
+            maximumBolus: 5,
+            suspendThreshold: predictionInput.settings.suspendThreshold,
+            automaticDosingStrategy: .automaticBolus
+        )
+
+        let glucoseStore = MockGlucoseStore()
+        glucoseStore.storedGlucose = predictionInput.glucoseHistory
+
+        let currentDate = glucoseStore.latestGlucose!.startDate
+        now = currentDate
+
+        let doseStore = MockDoseStore()
+        doseStore.basalProfile = basalRateSchedule
+        doseStore.basalProfileApplyingOverrideHistory = doseStore.basalProfile
+        doseStore.sensitivitySchedule = insulinSensitivitySchedule
+        doseStore.doseHistory = predictionInput.doses
+        doseStore.lastAddedPumpData = predictionInput.doses.last!.startDate
+        let carbStore = MockCarbStore()
+        carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
+        carbStore.carbRatioSchedule = carbRatioSchedule
+        carbStore.carbRatioScheduleApplyingOverrideHistory = carbRatioSchedule
+        carbStore.carbHistory = predictionInput.carbEntries
+        
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = true
+        // allow either prediction to be used, setting COB > 10
+        carbStore.carbsOnBoard = CarbValue(startDate: currentDate, value: 11)
+
+        dosingDecisionStore = MockDosingDecisionStore()
+        automaticDosingStatus = AutomaticDosingStatus(automaticDosingEnabled: true, isAutomaticDosingAllowed: true)
+        loopDataManager = LoopDataManager(
+            lastLoopCompleted: currentDate,
+            basalDeliveryState: .active(currentDate),
+            settings: settings,
+            overrideHistory: TemporaryScheduleOverrideHistory(),
+            analyticsServicesManager: AnalyticsServicesManager(),
+            localCacheDuration: .days(1),
+            doseStore: doseStore,
+            glucoseStore: glucoseStore,
+            carbStore: carbStore,
+            dosingDecisionStore: dosingDecisionStore,
+            latestStoredSettingsProvider: MockLatestStoredSettingsProvider(),
+            now: { currentDate },
+            pumpInsulinType: .novolog,
+            automaticDosingStatus: automaticDosingStatus,
+            trustedTimeOffset: { 0 }
+        )
+
+        var aceCarbsBaseWeight: Double = .nan
+
+        let updateGroup = DispatchGroup()
+        updateGroup.enter()
+        self.loopDataManager.getLoopState { _, _ in
+            // this establishes the first prediction - after which we want to do our next prediction which should be for Carbs (i.e. not useNoCarbs)
+            glucoseStore.storedGlucose?.append(StoredGlucoseSample(startDate: currentDate.addingTimeInterval(.minutes(5)), quantity: HKQuantity(unit: .milligramsPerDeciliter, doubleValue: 199)))
+            NotificationCenter.default.post(name: GlucoseStore.glucoseSamplesDidChange, object: glucoseStore)
+
+            self.loopDataManager.getLoopState { _, state in
+                aceCarbsBaseWeight = state.adaptiveCarbohydrateEffectBaseWeight
+                updateGroup.leave()
+            }
+        }
+        // We need to wait until the task completes to get outputs
+        updateGroup.wait()
+
+        XCTAssertEqual(1.0, aceCarbsBaseWeight)
     }
 
 

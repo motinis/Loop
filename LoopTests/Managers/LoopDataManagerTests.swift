@@ -134,8 +134,9 @@ class LoopDataManagerTests: XCTestCase {
                // note that carbHistory is independent from carb effects;
                // one can use dummy replacement carb entry to force recalculation when getting a manual bolus recommendation
                carbHistorySupplier: ((Date) -> [StoredCarbEntry]?)? = nil,
-               autoBolusCarbs: Bool = false
-    )
+               autoBolusCarbs: Bool = false,
+               carbsOnBoard: CarbValue? = nil,
+               adapativeCarbohydrateEffectEnabled: Bool = false)
     {
         let basalRateSchedule = loadBasalRateScheduleFixture("basal_profile")
         let insulinSensitivitySchedule = InsulinSensitivitySchedule(
@@ -181,7 +182,9 @@ class LoopDataManagerTests: XCTestCase {
         let carbStore = MockCarbStore(for: test, predictGlucose: predictCarbGlucoseEffects, carbHistory: carbHistorySupplier?(now))
         carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
         carbStore.carbRatioSchedule = carbRatioSchedule
+        carbStore.carbsOnBoard = carbsOnBoard
 
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = adapativeCarbohydrateEffectEnabled
         
         dosingDecisionStore = MockDosingDecisionStore()
         automaticDosingStatus = AutomaticDosingStatus(automaticDosingEnabled: true, isAutomaticDosingAllowed: true)
@@ -197,7 +200,7 @@ class LoopDataManagerTests: XCTestCase {
             carbStore: carbStore,
             dosingDecisionStore: dosingDecisionStore,
             latestStoredSettingsProvider: MockLatestStoredSettingsProvider(),
-            now: { currentDate },
+            now: { glucoseStore.latestGlucose!.startDate },
             pumpInsulinType: .novolog,
             automaticDosingStatus: automaticDosingStatus,
             trustedTimeOffset: { 0 }
@@ -213,6 +216,7 @@ class LoopDataManagerTests: XCTestCase {
         loopDataManager = nil
         UserDefaults.standard.autoBolusCarbsEnabled = false
         UserDefaults.standard.autoBolusCarbsActiveByDefault = false
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = false
     }
 }
 

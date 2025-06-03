@@ -817,7 +817,6 @@ class BolusEntryViewModelTests: XCTestCase {
 // MARK: utilities
 
 fileprivate class MockLoopState: LoopState {
-    
     var carbsOnBoard: CarbValue?
     
     var insulinOnBoard: InsulinValue?
@@ -837,6 +836,8 @@ fileprivate class MockLoopState: LoopState {
     var totalRetrospectiveCorrection: HKQuantity?
     
     var negativeInsulinDamper: Double?
+    var adaptiveCarbohydrateEffectBaseWeight: Double = 1.0
+    var floatingCorrectionRangeAdjustment: Double?
     
     var predictGlucoseValueResult: [PredictedGlucoseValue] = []
     func predictGlucose(using inputs: PredictionInputEffect, potentialBolus: DoseEntry?, potentialCarbEntry: NewCarbEntry?, replacingCarbEntry replacedCarbEntry: StoredCarbEntry?, includingPendingInsulin: Bool, considerPositiveVelocityAndRC: Bool) throws -> [PredictedGlucoseValue] {

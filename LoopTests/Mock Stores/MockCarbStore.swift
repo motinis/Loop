@@ -12,6 +12,7 @@ import LoopKit
 
 class MockCarbStore: CarbStoreProtocol {
     var predictGlucose: Bool
+    
     var carbHistory: [StoredCarbEntry]?
 
     init(for scenario: DosingTestScenario = .flatAndStable, predictGlucose: Bool = false, carbHistory: [StoredCarbEntry]? = nil) {
@@ -71,6 +72,9 @@ class MockCarbStore: CarbStoreProtocol {
     
     var sharingDenied: Bool = false
         
+    
+    var carbsOnBoard: CarbValue? = nil
+    
     func authorize(toShare: Bool, read: Bool, _ completion: @escaping (HealthKitSampleStoreResult<Bool>) -> Void) {
         completion(.success(true))
     }
@@ -98,17 +102,17 @@ class MockCarbStore: CarbStoreProtocol {
         }
         
         // this is basically copied over from CarbStore
-
+        
         let carbDates = samples.map { $0.startDate }
         let maxCarbDate = carbDates.max()!
         let minCarbDate = carbDates.min()!
-
+        
         guard let carbRatio = self.carbRatioScheduleApplyingOverrideHistory?.between(start: minCarbDate, end: maxCarbDate),
               let insulinSensitivity = self.insulinSensitivityScheduleApplyingOverrideHistory?.quantitiesBetween(start: minCarbDate, end: maxCarbDate) else
         {
             return []
         }
-
+        
         return samples.map(
             to: effectVelocities,
             carbRatio: carbRatio,
@@ -137,6 +141,9 @@ class MockCarbStore: CarbStoreProtocol {
     }
     
     func carbsOnBoard(at date: Date, effectVelocities: [GlucoseEffectVelocity]?, completion: @escaping (CarbStoreResult<CarbValue>) -> Void) {
+        if let carbsOnBoard = carbsOnBoard {
+            return completion(.success(carbsOnBoard))
+        }
         completion(.failure(.notConfigured))
     }
     
