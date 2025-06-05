@@ -399,6 +399,7 @@ final class LoopDataManager {
     }
     
     private var negativeInsulinDamperCachedBaseDate: Date = .distantPast
+    static let MINIMUM_ACE_CARBS_BASE_WEIGHT = 0.75 // at least this much will still be assigned to carb effects
     private var aceCarbsBaseWeight = 1.0
     private var aceBaseWeightedCarbEffects = [[GlucoseEffect]]()
     /// promoted to a member for ACE. is set before updateRetrospectiveGlucoseEffect() is called
@@ -2197,6 +2198,7 @@ extension LoopDataManager {
         }
 
         aceCarbsBaseWeight = max(0, min(1, (value - noCarbsPrediction) / (carbsPrediction - noCarbsPrediction)))
+        aceCarbsBaseWeight = max(aceCarbsBaseWeight, Self.MINIMUM_ACE_CARBS_BASE_WEIGHT) // ensure that at most we transfer 25% to the no-carbs prediction
         aceBaseWeightedCarbEffects.removeAll()
         updateFloatingCorrectionRangeAdjustment()
 
