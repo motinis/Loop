@@ -465,7 +465,8 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         var predictions = [[Double]]()
         var aceBaseWeight: Double = .nan
         
-        let targetValue = 0.5 * (188.09812579780018 + 196.63016912850532) // average of noCarbs and carbs predictions from previous cycle
+        let targetAceBaseWeight = max(0.5, LoopDataManager.MINIMUM_ACE_CARBS_BASE_WEIGHT)
+        let targetValue = (1 - targetAceBaseWeight) * 188.09812579780018 + targetAceBaseWeight * 196.63016912850532 // weighted average of noCarbs and carbs predictions from previous cycle
         
         let updateGroup = DispatchGroup()
         updateGroup.enter()
@@ -491,7 +492,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         // We need to wait until the task completes to get outputs
         updateGroup.wait()
         
-        XCTAssertEqual(0.5, aceBaseWeight, accuracy: 1E-9)
+        XCTAssertEqual(targetAceBaseWeight, aceBaseWeight, accuracy: 1E-9)
         
         let totalAbsorptionTime = 1.5 * .hours(3)
 
