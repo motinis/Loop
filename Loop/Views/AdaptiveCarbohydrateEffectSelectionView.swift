@@ -22,8 +22,14 @@ public struct AdaptiveCarbohydrateEffectSelectionView: View {
 
                 Divider()
 
-                Text(NSLocalizedString("Adaptive Carbohydrate Effect (ACE) is an extension to the Loop Algorithm. When enabled, ACE allows Loop to respond more dynamically to carb absorption. Each Loop cycle, it calculates the percentage of the carb effect from past meals which should be handled by Retrospective Correction (RC) for the next predicted value. This percentage decays over the next 60 minutes as usual for RC. When Carbs on Board (COB) is 10g or less, this will only be used if the resulting prediction will be less than the standard carb effect. When ACE is enabled, Floating Correction Range (FCR) is automatically applied when there are carbs on board, where the FCR adjustment is multiplied by the ACE percentage.", comment: "Description of Adaptive Carbohydrate Effect toggle."))
-                    .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(NSLocalizedString("Adaptive Carbohydrate Effect (ACE) is an extension to the Loop Algorithm which allows Loop to respond more dynamically to carb absorption. Each Loop cycle, it calculates the percentage of the carb effect from past meals which should be handled by Retrospective Correction (RC) for the next predicted value. This percentage decays over the next 60 minutes as usual for RC", comment: "Description of Adaptive Carbohydrate Effect toggle."))
+                        .foregroundColor(.secondary)
+                    Text(NSLocalizedString("When ACE is enabled, Floating Correction Range (FCR) is used automatically when there are carbs on board. The FCR adjustment is multiplied by the percentage handled by RC.", comment: "Description of ACE using FCR"))
+                        .foregroundColor(.secondary)
+                    Text(NSLocalizedString("ACE has no effect when Carbs On Board is less than 10g.", comment: "Description when ACE has no effect"))
+                        .foregroundColor(.secondary)
+                }
                 Divider()
 
                 Toggle(NSLocalizedString("🚧 Enable Adaptive Carbohydrate Effect", comment: "Title for Adaptive Carbohydrate Effect toggle"), isOn: $isAdaptiveCarbohydrateEffectEnabled)

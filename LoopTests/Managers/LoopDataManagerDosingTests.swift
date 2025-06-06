@@ -322,7 +322,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
             self.loopDataManager.getLoopState { _, state in
                 for diff in minutesDiff {
                     do {
-                        let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 10), startDate: latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))), foodType: nil, absorptionTime: .hours(3))
+                        let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: LoopDataManager.MINIMUM_ACE_COB_GRAMS), startDate: latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))), foodType: nil, absorptionTime: .hours(3))
                         let prediction = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: carbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
                         
                         predictions.append(prediction.map{$0.quantity.doubleValue(for: .mgdL)})
@@ -334,6 +334,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         }
         // We need to wait until the task completes to get outputs
         updateGroup.wait()
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = false
         
         let totalAbsorptionTime = 1.5 * .hours(3)
 
@@ -377,7 +378,15 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         XCTAssertEqual(unweightedDiffs.min()!, unweightedDiffs.max()!, accuracy: 1E-9)
     }
     
+    func testACEAverageCarbsForecastAllowingLowerNoCarbsPredictionFromLiveCaptureInputData() {
+        doTestAceAverageCarbsForecastFromLiveCaptureInputData(false)
+    }
+    
     func testACEAverageCarbsForecastFromLiveCaptureInputData() {
+        doTestAceAverageCarbsForecastFromLiveCaptureInputData(true)
+    }
+    
+    func doTestAceAverageCarbsForecastFromLiveCaptureInputData(_ allowLowerNoCarbsPrediction: Bool)  {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let url = bundle.url(forResource: "live_capture_input", withExtension: "json")!
@@ -434,8 +443,13 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         carbStore.carbHistory = predictionInput.carbEntries
         
         UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = true
-        // for this scenario ACE NoCarbs has the lower prediction and is more accurate, so just need COB > 0
-        carbStore.carbsOnBoard = CarbValue(startDate: currentDate, value: 1)
+        
+        if allowLowerNoCarbsPrediction {
+            // this test enables us to check the overall logic (even though the noCarbsPrediction is lower - this was simpler than constructing a new test case)
+            UserDefaults.standard.setValue(1, forKey: "test.ace.allowLowerNoCarbsPrediction")
+        }
+        
+        carbStore.carbsOnBoard = CarbValue(startDate: currentDate, value: LoopDataManager.MINIMUM_ACE_COB_GRAMS)
 
         dosingDecisionStore = MockDosingDecisionStore()
         automaticDosingStatus = AutomaticDosingStatus(automaticDosingEnabled: true, isAutomaticDosingAllowed: true)
@@ -465,8 +479,8 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         var predictions = [[Double]]()
         var aceBaseWeight: Double = .nan
         
-        let targetAceBaseWeight = max(0.5, LoopDataManager.MINIMUM_ACE_CARBS_BASE_WEIGHT)
-        let targetValue = (1 - targetAceBaseWeight) * 188.09812579780018 + targetAceBaseWeight * 196.63016912850532 // weighted average of noCarbs and carbs predictions from previous cycle
+        let targetValue = 0.5 * (188.09812579780018 + 196.63016912850532) // weighted average of noCarbs and carbs predictions from previous cycle
+        let targetAceBaseWeight = allowLowerNoCarbsPrediction ? 1 - 0.5 * (1 - LoopDataManager.MINIMUM_ACE_CARBS_BASE_WEIGHT) : 1
         
         let updateGroup = DispatchGroup()
         updateGroup.enter()
@@ -479,7 +493,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
                 aceBaseWeight = state.adaptiveCarbohydrateEffectBaseWeight
                 for diff in minutesDiff {
                     do {
-                        let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 10), startDate: latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))), foodType: nil, absorptionTime: .hours(3))
+                        let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: LoopDataManager.MINIMUM_ACE_COB_GRAMS), startDate: latestGlucoseDate.addingTimeInterval(.minutes(Double(diff))), foodType: nil, absorptionTime: .hours(3))
                         let prediction = try state.predictGlucose(using: .carbs, potentialBolus: nil, potentialCarbEntry: carbEntry, replacingCarbEntry: replacedCarbEntry, includingPendingInsulin: true, considerPositiveVelocityAndRC: true)
                         
                         predictions.append(prediction.map{$0.quantity.doubleValue(for: .mgdL)})
@@ -491,6 +505,9 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         }
         // We need to wait until the task completes to get outputs
         updateGroup.wait()
+        
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = false
+        UserDefaults.standard.removeObject(forKey: "test.ace.allowLowerNoCarbsPrediction")
         
         XCTAssertEqual(targetAceBaseWeight, aceBaseWeight, accuracy: 1E-9)
         
@@ -632,6 +649,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         }
         // We need to wait until the task completes to get outputs
         updateGroup.wait()
+        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = false
 
         XCTAssertEqual(1.0, aceCarbsBaseWeight)
     }
