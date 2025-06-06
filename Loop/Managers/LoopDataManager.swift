@@ -399,6 +399,8 @@ final class LoopDataManager {
     }
     
     private var negativeInsulinDamperCachedBaseDate: Date = .distantPast
+    
+    static let MINIMUM_ACE_COB_GRAMS = 10.0
     static let MINIMUM_ACE_CARBS_BASE_WEIGHT = 0.75 // at least this much will still be assigned to carb effects
     private var aceCarbsBaseWeight = 1.0
     private var aceBaseWeightedCarbEffects = [[GlucoseEffect]]()
@@ -2190,15 +2192,18 @@ extension LoopDataManager {
         let carbsPrediction = prevRetroEffect[1].quantity.doubleValue(for: .mgdL) + deltaCarbEffect
         let noCarbsPrediction = prevNoCarbsRetroEffect[1].quantity.doubleValue(for: .mgdL) + sumDeltaWeightedCarbEffect
 
-        guard noCarbsPrediction != carbsPrediction && (cob > 10 || noCarbsPrediction < carbsPrediction) else {
+        let allowLowerNoCarbsPrediction = UserDefaults.standard.bool(forKey: "test.ace.allowLowerNoCarbsPrediction")
+        
+        guard (noCarbsPrediction > carbsPrediction || allowLowerNoCarbsPrediction) && cob >= Self.MINIMUM_ACE_COB_GRAMS else {
             aceCarbsBaseWeight = 1
             aceBaseWeightedCarbEffects.removeAll()
             updateFloatingCorrectionRangeAdjustment()
             return
         }
-
-        aceCarbsBaseWeight = max(0, min(1, (value - noCarbsPrediction) / (carbsPrediction - noCarbsPrediction)))
-        aceCarbsBaseWeight = max(aceCarbsBaseWeight, Self.MINIMUM_ACE_CARBS_BASE_WEIGHT) // ensure that at most we transfer 25% to the no-carbs prediction
+        
+        let unscaledNoCarbsWeight = 1.0 - max(0, min(1, (noCarbsPrediction - value) / (noCarbsPrediction - carbsPrediction)))
+        aceCarbsBaseWeight = 1 - (1 - Self.MINIMUM_ACE_CARBS_BASE_WEIGHT) * unscaledNoCarbsWeight
+        
         aceBaseWeightedCarbEffects.removeAll()
         updateFloatingCorrectionRangeAdjustment()
 
