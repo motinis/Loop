@@ -12,32 +12,25 @@ import LoopKit
 import LoopCore
 
 struct GlucoseBasedApplicationFactorStrategy: ApplicationFactorStrategy {
-    static let minPartialApplicationFactor = 0.40 // min fraction of correction when glucose > minGlucoseSlidingScale
-    static let maxPartialApplicationFactor = 0.70 // max fraction of correction when glucose > maxGlucoseSlidingScale
+    static let minPartialApplicationFactor = 0.20 // min fraction of correction when glucose > minGlucoseSlidingScale
+    static let maxPartialApplicationFactor = 0.80 // max fraction of correction when glucose > maxGlucoseSlidingScale
     // set minGlucoseSlidingScale based on user setting for correction range
     // use mg/dL for calculations
     static let minGlucoseDeltaSlidingScale = 10.0 // mg/dL
-    
-    static let minGlucoseSlidingScale = 180.0 // mg/dL
-    static let maxGlucoseSlidingScale = 280.0 // mg/dL
+    static let maxGlucoseSlidingScale = 200.0 // mg/dL
 
     func calculateDosingFactor(
         for glucose: HKQuantity,
         correctionRangeSchedule: GlucoseRangeSchedule,
         settings: LoopSettings
     ) -> Double {
-        // only when asleep!
-        guard let sleepSchedule = settings.sleepSchedule, sleepSchedule.isAsleep(at: Date()) else {
-            return Self.minPartialApplicationFactor
-        }
-        
         // Calculate current glucose and lower bound target
         let currentGlucose = glucose.doubleValue(for: .milligramsPerDeciliter)
         let correctionRange = correctionRangeSchedule.quantityRange(at: Date())
         let lowerBoundTarget = correctionRange.lowerBound.doubleValue(for: .milligramsPerDeciliter)
 
         // Calculate minimum glucose sliding scale and scaling fraction
-        let minGlucoseSlidingScale = GlucoseBasedApplicationFactorStrategy.minGlucoseSlidingScale //minGlucoseDeltaSlidingScale + lowerBoundTarget
+        let minGlucoseSlidingScale = GlucoseBasedApplicationFactorStrategy.minGlucoseDeltaSlidingScale + lowerBoundTarget
         let scalingFraction = (GlucoseBasedApplicationFactorStrategy.maxPartialApplicationFactor - GlucoseBasedApplicationFactorStrategy.minPartialApplicationFactor) / (GlucoseBasedApplicationFactorStrategy.maxGlucoseSlidingScale - minGlucoseSlidingScale)
         let scalingGlucose = max(currentGlucose - minGlucoseSlidingScale, 0.0)
 

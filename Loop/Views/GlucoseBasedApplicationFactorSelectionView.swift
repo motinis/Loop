@@ -30,13 +30,12 @@ public struct GlucoseBasedApplicationFactorSelectionView: View {
                 Divider()
 
                 if automaticDosingStrategy == .automaticBolus {
-                    //Text(NSLocalizedString("Loop normally gives 40% of your predicted insulin needs each dosing cycle.\n\nWhen the Glucose Based Partial Application experiment is enabled, Loop will vary the percentage of recommended bolus delivered each cycle with glucose level.\n\nNear correction range, it will use 20% (similar to Temp Basal), and gradually increase to a maximum of 80% at high glucose (200 mg/dL, 11.1 mmol/L).\n\nPlease be aware that during fast rising glucose, such as after an unannounced meal, this feature, combined with velocity and retrospective correction effects, may result in a larger dose than your ISF would call for.", comment: "Description of Glucose Based Partial Application toggle."))//
-                    Text(NSLocalizedString("This is a custom implementation of GBPA.\n\nIt uses the typical 40% factor up to 180 mg/dL. After this it scales linearly up to 70% factor at 280 mg/dL.\n\nGBPA only applies when asleep.", comment: "Description of Custom Glucose Based Partial Application toggle."))
+                    Text(NSLocalizedString("Loop normally gives 40% of your predicted insulin needs each dosing cycle.\n\nWhen the Glucose Based Partial Application experiment is enabled, Loop will vary the percentage of recommended bolus delivered each cycle with glucose level.\n\nNear correction range, it will use 20% (similar to Temp Basal), and gradually increase to a maximum of 80% at high glucose (200 mg/dL, 11.1 mmol/L).\n\nPlease be aware that during fast rising glucose, such as after an unannounced meal, this feature, combined with velocity and retrospective correction effects, may result in a larger dose than your ISF would call for.", comment: "Description of Glucose Based Partial Application toggle."))
                         .foregroundColor(.secondary)
                     Divider()
 
                     HStack {
-                        Toggle(NSLocalizedString("🚧 Enable Glucose Based Partial Application", comment: "Title for Glucose Based Partial Application toggle"), isOn: $isGlucoseBasedApplicationFactorEnabled)
+                        Toggle(NSLocalizedString("Enable Glucose Based Partial Application", comment: "Title for Glucose Based Partial Application toggle"), isOn: $isGlucoseBasedApplicationFactorEnabled)
                         Spacer()
                     }
                     .padding(.top, 20)
