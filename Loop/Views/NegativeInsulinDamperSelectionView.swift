@@ -59,7 +59,7 @@ struct NegativeInsulinDamperSelectionView: View {
                     } else {
                         Text(NSLocalizedString("Sleep Schedule is Disabled", comment: "Sleep schedule disabled sublabel for NID sleep schedule reduction toggle"))
                     }
-                }
+                }.disabled(!isNegativeInsulinDamperEnabled)
             }
             .padding()
         }

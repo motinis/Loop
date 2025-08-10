@@ -119,6 +119,7 @@ class LoopDataManagerTests: XCTestCase {
         
     // MARK: Mock stores
     var now: Date!
+    var carbStore: MockCarbStore!
     var dosingDecisionStore: MockDosingDecisionStore!
     var automaticDosingStatus: AutomaticDosingStatus!
     var loopDataManager: LoopDataManager!
@@ -131,12 +132,13 @@ class LoopDataManagerTests: XCTestCase {
                predictCarbGlucoseEffects: Bool = false,
                correctionRanges: GlucoseRangeSchedule? = nil,
                suspendThresholdValue: Double? = nil,
+               doseHistorySupplier: ((Date) -> [DoseEntry]?)? = nil,
                // note that carbHistory is independent from carb effects;
                // one can use dummy replacement carb entry to force recalculation when getting a manual bolus recommendation
                carbHistorySupplier: ((Date) -> [StoredCarbEntry]?)? = nil,
                autoBolusCarbs: Bool = false,
-               carbsOnBoard: CarbValue? = nil,
-               adapativeCarbohydrateEffectEnabled: Bool = false)
+               carbsOnBoardSupplier: ((Date) -> CarbValue)? = nil,
+               carbResponsiveRetrospectiveCorrectionEnabled: Bool = false)
     {
         let basalRateSchedule = loadBasalRateScheduleFixture("basal_profile")
         let insulinSensitivitySchedule = InsulinSensitivitySchedule(
@@ -169,22 +171,25 @@ class LoopDataManagerTests: XCTestCase {
             suspendThreshold: suspendThreshold,
             automaticDosingStrategy: dosingStrategy
         )
-        
-        let doseStore = MockDoseStore(for: test)
-        doseStore.basalProfile = basalRateSchedule
-        doseStore.basalProfileApplyingOverrideHistory = doseStore.basalProfile
-        doseStore.sensitivitySchedule = insulinSensitivitySchedule
+
         let glucoseStore = MockGlucoseStore(for: test)
         
         let currentDate = glucoseStore.latestGlucose!.startDate
         now = currentDate
+
+        let doseStore = MockDoseStore(for: test)
+        doseStore.basalProfile = basalRateSchedule
+        doseStore.basalProfileApplyingOverrideHistory = doseStore.basalProfile
+        doseStore.sensitivitySchedule = insulinSensitivitySchedule
+        if let doseHistorySupplier = doseHistorySupplier, let doseHistory = doseHistorySupplier(now) {
+            doseStore.doseHistory = doseHistory
+        }
         
-        let carbStore = MockCarbStore(for: test, predictGlucose: predictCarbGlucoseEffects, carbHistory: carbHistorySupplier?(now))
+        carbStore = MockCarbStore(for: test, predictGlucose: predictCarbGlucoseEffects, carbHistory: carbHistorySupplier?(now))
         carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
         carbStore.carbRatioSchedule = carbRatioSchedule
-        carbStore.carbsOnBoard = carbsOnBoard
-
-        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = adapativeCarbohydrateEffectEnabled
+        carbStore.carbsOnBoard = carbsOnBoardSupplier?(now)
+        
         
         dosingDecisionStore = MockDosingDecisionStore()
         automaticDosingStatus = AutomaticDosingStatus(automaticDosingEnabled: true, isAutomaticDosingAllowed: true)
@@ -210,13 +215,20 @@ class LoopDataManagerTests: XCTestCase {
             UserDefaults.standard.autoBolusCarbsEnabled = true
             UserDefaults.standard.autoBolusCarbsActiveByDefault = true
         }
+        if carbResponsiveRetrospectiveCorrectionEnabled {
+            UserDefaults.standard.carbResponsiveRetrospectiveCorrection = true
+        }
     }
     
     override func tearDownWithError() throws {
         loopDataManager = nil
+        tearDown()
+    }
+    
+    override func tearDown() {
         UserDefaults.standard.autoBolusCarbsEnabled = false
         UserDefaults.standard.autoBolusCarbsActiveByDefault = false
-        UserDefaults.standard.adaptiveCarbohydrateEffectEnabled = false
+        UserDefaults.standard.carbResponsiveRetrospectiveCorrection = false
     }
 }
 

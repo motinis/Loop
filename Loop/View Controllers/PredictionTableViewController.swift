@@ -73,7 +73,6 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
     private var totalRetrospectiveCorrection: HKQuantity?
     
     private var negativeInsulinDamper: Double?
-    private var adaptiveCarbohydrateEffectBaseWeight = 1.0
     private var floatingCorrectionRangeAdjustment: Double?
 
     private var refreshContext = RefreshContext.all
@@ -135,7 +134,6 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         _ = self.refreshContext.remove(.status)
         reloadGroup.enter()
         deviceManager.loopManager.getLoopState { (manager, state) in
-            self.adaptiveCarbohydrateEffectBaseWeight = state.adaptiveCarbohydrateEffectBaseWeight
             self.floatingCorrectionRangeAdjustment = state.floatingCorrectionRangeAdjustment
             self.retrospectiveGlucoseDiscrepancies = state.retrospectiveGlucoseDiscrepancies
             totalRetrospectiveCorrection = state.totalRetrospectiveCorrection
@@ -280,18 +278,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
 
         var subtitleText = input.localizedDescription(forGlucoseUnit: glucoseChart.glucoseUnit) ?? ""
         
-        let aceFormat = NSLocalizedString("Adaptive Carbohydrate Effect: %1$@%%", comment: "Adaptive Carbohydrate Effect - carb weight description")
         let fcrFormat = NSLocalizedString("Floating Correction Range: %1$@%", comment: "Floating Correction Range - adjustment")
-        
-        if input == .carbs, 100 * adaptiveCarbohydrateEffectBaseWeight < 99.5 {
-            let formatter = NumberFormatter()
-            formatter.minimumIntegerDigits = 1
-            formatter.maximumSignificantDigits = 2
-            formatter.roundingMode = .halfUp
-                        
-            let aceText = String(format: aceFormat, formatter.string(from: 100 * adaptiveCarbohydrateEffectBaseWeight) ?? "?")
-            subtitleText = String(format: "%@\n%@", subtitleText, aceText)
-        }
 
         if input == .damper, let negativeInsulinDamper = negativeInsulinDamper {
             let formatter = NumberFormatter()
@@ -323,29 +310,11 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             )
             let isIntegralRetrospectiveCorrectionEnabled = UserDefaults.standard.integralRetrospectiveCorrectionEnabled
             
-            let aceText: String
-            if 100 * (1 - adaptiveCarbohydrateEffectBaseWeight) >= 0.5 {
-                let formatter = NumberFormatter()
-                formatter.minimumIntegerDigits = 1
-                formatter.roundingMode = .halfDown
-                
-                aceText = String(format: aceFormat, formatter.string(from: 100 * (1 - adaptiveCarbohydrateEffectBaseWeight)) ?? "?")
-            } else {
-                aceText = ""
-            }
-            
             let fcrText: String
             if let fcrAdjustment = floatingCorrectionRangeAdjustment, fcrAdjustment > 0 {
                 fcrText = String(format: fcrFormat, formatter.string(from: HKQuantity(unit: glucoseChart.glucoseUnit, doubleValue: fcrAdjustment)) ?? "?")
             } else {
                 fcrText = ""
-            }
-            
-            let interimText: String
-            if !aceText.isEmpty {
-                interimText = fcrText.isEmpty ? aceText : "\(aceText)\n\(fcrText)"
-            } else {
-                interimText = fcrText
             }
             
             if isIntegralRetrospectiveCorrectionEnabled {
@@ -362,12 +331,12 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
                     integralEffectDisplay, totalEffectDisplay
                 )
                 subtitleText = String(format: "%@\n%@", retro, integralRetro)
-                if !interimText.isEmpty {
-                    subtitleText = String(format: "%@\n%@", interimText, subtitleText)
+                if !fcrText.isEmpty {
+                    subtitleText = String(format: "%@\n%@", fcrText, subtitleText)
                 }
             } else {
-                if !interimText.isEmpty {
-                    subtitleText = String(format: "%@\n%@\n%@", subtitleText, interimText, retro)
+                if !fcrText.isEmpty {
+                    subtitleText = String(format: "%@\n%@\n%@", subtitleText, fcrText, retro)
                 } else {
                     subtitleText = String(format: "%@\n%@", subtitleText, retro)
                 }
