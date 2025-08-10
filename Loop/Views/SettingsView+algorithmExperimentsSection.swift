@@ -27,6 +27,7 @@ public struct ExperimentRow: View {
         HStack {
             Text(name)
                 .foregroundColor(.primary)
+                .multilineTextAlignment(.leading)
             Spacer()
             if let enabled = enabled {
                 Text(enabled ? "On" : "Off")
@@ -48,7 +49,8 @@ public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.AutoBolusCarbsEnabled.rawValue) private var isAutoBolusCarbsEnabled = false
     @AppStorage(UserDefaults.Key.AutoBolusCarbsActiveByDefault.rawValue) private var autoBolusCarbsActiveByDefault = false
 
-    @AppStorage(UserDefaults.Key.AdaptiveCarbohydrateEffectEnabled.rawValue) private var isAdaptiveCarbohydrateEffectEnabled = false
+    @AppStorage(UserDefaults.Key.CarbResponsiveRetrospectiveCorrectionEnabled.rawValue) private var isCarbResponsiveRetrospectiveCorrectionEnabled = false
+    @AppStorage(UserDefaults.Key.FloatingCorrectionRangeForCarbsOnBoardEnabled.rawValue) private var isFloatingCorrectionRangeForCarbsOnBoardEnabled = false
     
     @AppStorage(UserDefaults.Key.FloatingCorrectionRangeEnabled.rawValue) private var isFloatingCorrectionRangeEnabled = false
     @AppStorage(UserDefaults.Key.FloatingCorrectionRangeEnabledWhenAsleep.rawValue) private var isFloatingCorrectionRangeEnabledWhenAsleep = false
@@ -93,10 +95,10 @@ public struct ExperimentsSettingsView: View {
                         name: NSLocalizedString("Auto-Bolus Carbs", comment: "Title of auto-bolus carbs experiment"),
                         enabled: isAutoBolusCarbsEnabled)
                 }
-                NavigationLink(destination: AdaptiveCarbohydrateEffectSelectionView(isAdaptiveCarbohydrateEffectEnabled: $isAdaptiveCarbohydrateEffectEnabled)) {
+                NavigationLink(destination: CarbReactiveRestrospectiveCorrection(isCarbReactiveRetrospectiveCorrectionEnabled: $isCarbResponsiveRetrospectiveCorrectionEnabled, isFloatingCorrectionRangeWithCarbsOnBoardEnabled: $isFloatingCorrectionRangeForCarbsOnBoardEnabled)) {
                     ExperimentRow(
-                        name: NSLocalizedString("Adaptive Carbohydrate Effect", comment: "Title of adaptive carbohydrate effect experiment"),
-                        enabled: isAdaptiveCarbohydrateEffectEnabled)
+                        name: NSLocalizedString("Carb-Reactive Retrospective Correction", comment: "Title of reactive-carb retrospective correction experiment"),
+                        enabled: isCarbResponsiveRetrospectiveCorrectionEnabled)
                 }
                 NavigationLink(destination: FloatingCorrectionRangeEnabledSelectionView(isFloatingCorrectionRangeEnabled: $isFloatingCorrectionRangeEnabled, isFloatingCorrectionRangeEnabledWhenAsleep: $isFloatingCorrectionRangeEnabledWhenAsleep, sleepSchedule: sleepSchedule)) {
                     ExperimentRow(
@@ -138,7 +140,8 @@ extension UserDefaults {
         case SleepScheduleAffectsNegativeInsulinDamperEnabled = "com.loopkit.algorithmExperiments.sleepScheduleAffectsNegativeInsulinDamperEnabled"
         case AutoBolusCarbsEnabled = "com.loopkit.algorithmExperiments.autoBolusCarbsEnabled"
         case AutoBolusCarbsActiveByDefault = "com.loopkit.algorithmExperiments.autoBolusCarbsActiveByDefault"
-        case AdaptiveCarbohydrateEffectEnabled = "com.loopkit.algorithmExperiments.adaptiveCarbohydrateEffectEnabled"
+        case CarbResponsiveRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.carbResponsiveRetrospectiveCorrectionEnabled"
+        case FloatingCorrectionRangeForCarbsOnBoardEnabled = "com.loopkit.algorithmExperiments.floatingCorrectionRangeForCarbsOnBoardEnabled"
         case FloatingCorrectionRangeEnabled = "com.loopkit.algorithmExperiments.floatingCorrectionRangeEnabled"
         case FloatingCorrectionRangeEnabledWhenAsleep = "com.loopkit.algorithmExperiments.floatingCorrectionRangeEnabledWhenAsleep"
     }
@@ -196,12 +199,22 @@ extension UserDefaults {
             set(newValue, forKey: Key.AutoBolusCarbsActiveByDefault.rawValue)
         }
     }
-    var adaptiveCarbohydrateEffectEnabled: Bool {
+    
+    var carbResponsiveRetrospectiveCorrection: Bool {
         get {
-            bool(forKey: Key.AdaptiveCarbohydrateEffectEnabled.rawValue) as Bool
+            bool(forKey: Key.CarbResponsiveRetrospectiveCorrectionEnabled.rawValue) as Bool
         }
         set {
-            set(newValue, forKey: Key.AdaptiveCarbohydrateEffectEnabled.rawValue)
+            set(newValue, forKey: Key.CarbResponsiveRetrospectiveCorrectionEnabled.rawValue)
+        }
+    }
+    
+    var floatingCorrectionRangeForCarbsOnBoardEnabled: Bool {
+        get {
+            bool(forKey: Key.FloatingCorrectionRangeForCarbsOnBoardEnabled.rawValue) as Bool
+        }
+        set {
+            set(newValue, forKey: Key.FloatingCorrectionRangeForCarbsOnBoardEnabled.rawValue)
         }
     }
     
