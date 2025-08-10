@@ -26,7 +26,7 @@ public struct CarbReactiveRestrospectiveCorrection: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(NSLocalizedString("Carb-Reactive Retrospective Correction (CRRC) is an extension to the Loop Algorithm which allows Loop to respond more dynamically to carb absorption. The standard Retrospective Correction (RC) algorithm treats all increases to glucose to be due to carbs. CRRC evaluates an additional RC component when carb absorption exceeds twice the predicted absorption. This additional component is weighted up to 50% of RC and is combined with the regular RC component.", comment: "Description of Carb-Reactive Retrospective Correction toggle."))
                         .foregroundColor(.secondary)
-                    Text(NSLocalizedString("When CRRC is enabled, Floating Correction Range (FCR) can optionally be used as well when there are carbs on board. The FCR adjustment is calculated based on the increase in glucose relative to the expectation of twice the MAR. The adjustment is then multiplied by the percentage handled by CRRC.", comment: "Description of FCR with CRRC toggle"))
+                    Text(NSLocalizedString("When CRRC is enabled, Floating Correction Range (FCR) can optionally be used as well when there are carbs on board. The FCR adjustment is calculated based on the increase in glucose beyond twice the predicted carb absorption. The adjustment is then multiplied by the percentage handled by CRRC.", comment: "Description of FCR with CRRC toggle"))
                         .foregroundColor(.secondary)
                 }
                 Divider()
