@@ -408,6 +408,7 @@ final class LoopDataManager {
     private static let CRRC_CARB_EFFECT_MULTIPLIER = 2.0
     
     private var crrcCarbEffect: [GlucoseEffect]?
+    private var crrcInsulinEffect: [GlucoseEffect]?
     
     /// promoted to a member for FCR. is set before updateRetrospectiveGlucoseEffect() is called
     private var historicalGlucose: [HistoricalGlucoseValue]?
@@ -1147,14 +1148,16 @@ extension LoopDataManager {
             self.logger.debug("Recomputing insulin effects")
             updateGroup.enter()
             let basalDosingEnd = now()
-            doseStore.getGlucoseEffects(start: insulinEffectStartDate, end: nil, doseEnd: nil, basalDosingEnd: basalDosingEnd) { (result) -> Void in
+            doseStore.getGlucoseEffects(start: retrospectiveStart, end: nil, doseEnd: nil, basalDosingEnd: basalDosingEnd) { (result) -> Void in
                 switch result {
                 case .failure(let error):
                     self.logger.error("Could not fetch insulin effects: %{public}@", error.localizedDescription)
                     self.insulinEffect = nil
+                    self.crrcInsulinEffect = nil
                     warnings.append(.fetchDataWarning(.insulinEffect(error: error)))
                 case .success(let effects):
-                    self.insulinEffect = effects
+                    self.insulinEffect = effects.filterDateRange(insulinEffectStartDate, nil)
+                    self.crrcInsulinEffect = effects.filterDateRange(nil, lastGlucoseDate.addingTimeInterval(.minutes(5)))
                 }
 
                 updateGroup.leave()
@@ -2087,10 +2090,9 @@ extension LoopDataManager {
         
         var accountedForIncrease = 0.0
         
-        if cob > 0, let crrcCarbEffect = crrcCarbEffect, !crrcCarbEffect.isEmpty, let insulinEffect=insulinEffect, !insulinEffect.isEmpty {
-            
+        if cob > 0, let crrcCarbEffect = crrcCarbEffect, !crrcCarbEffect.isEmpty, let crrcInsulinEffect = crrcInsulinEffect, !crrcInsulinEffect.isEmpty {            
             let (_, crStartValue, crEndValue) = crrcCarbEffect.interpolateValues(start: prevGlucose.startDate, end: glucose.startDate, unit: .mgdL)
-            let (_, insulinStartValue, insulinEndValue) = insulinEffect.interpolateValues(start: prevGlucose.startDate, end: glucose.startDate, unit: .mgdL)
+            let (_, insulinStartValue, insulinEndValue) = crrcInsulinEffect.interpolateValues(start: prevGlucose.startDate, end: glucose.startDate, unit: .mgdL)
 
             if let crStartValue = crStartValue, let crEndValue = crEndValue, let insulinStartValue = insulinStartValue, let insulinEndValue = insulinEndValue {
                 accountedForIncrease = max(0, crEndValue - crStartValue + insulinEndValue - insulinStartValue)
