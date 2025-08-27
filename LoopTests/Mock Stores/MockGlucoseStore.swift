@@ -87,10 +87,10 @@ class MockGlucoseStore: GlucoseStoreProtocol {
         samples.counteractionEffects(to: effects)
     }
     
-    func getRecentMomentumEffect(for date: Date? = nil, _ completion: @escaping (_ effects: Result<[GlucoseEffect], Error>) -> Void) {
+    func getRecentMomentumEffect(for date: Date? = nil, velocityTransform: ((HKQuantity) -> HKQuantity)? = nil, _ completion: @escaping (_ effects: Result<[GlucoseEffect], Error>) -> Void) {
         if let storedGlucose {
             let samples = storedGlucose.filterDateRange((date ?? Date()).addingTimeInterval(-GlucoseMath.momentumDataInterval), nil)
-            completion(.success(samples.linearMomentumEffect()))
+            completion(.success(samples.linearMomentumEffect(velocityTransform: velocityTransform)))
         } else {
             let fixture: [JSONDictionary] = loadFixture(momentumEffectToLoad)
             let dateFormatter = ISO8601DateFormatter.localTimeDate()
