@@ -25,7 +25,7 @@ public struct AutoBolusCarbsSelectionView: View {
 
                 Divider()
 
-                Text(String(format: NSLocalizedString("Auto-Bolus Carbs (ABC) is a modification of how Loop corrects each loop cycle. When enabled and active, Loop will check how much insulin is needed to cover COB (similar to doing a manual bolus but without correcting for BG). If this amount is greater than the usual correction, a bolus for that amount will be given. Overrides can also be used to activate or deactivate. When ABC is enabled and active a %@ will appear beside Active Carbohydrates on the status screen.", comment: "Description of Auto-Bolus Carbs toggles."), "🔸"))
+                Text(String(format: NSLocalizedString("Auto-Bolus Carbs (ABC) is a modification of how Loop corrects each loop cycle. When enabled and active, Loop will check how much insulin is needed to cover existing carbs (similar to doing a manual bolus but without correcting for grucose). If this amount is greater than the usual correction, a bolus for that amount will be given. Overrides can also be used to activate or deactivate. When ABC is enabled and active a %@ will appear beside Active Carbohydrates on the status screen.", comment: "Description of Auto-Bolus Carbs toggles."), "🔸"))
                     .foregroundColor(.secondary)
                 Divider()
 

@@ -49,6 +49,13 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
                     self?.reloadData(animated: true)
                 }
             },
+            notificationCenter.addObserver(forName: .AlgorithmExperimentsChanged, object: UserDefaults.standard, queue: nil) { [weak self] (notification: Notification) in
+                DispatchQueue.main.async {
+                    self?.refreshContext.update(with: .status)
+                    self?.reloadData(animated: true)
+                }
+            },
+
         ]
     }
 
@@ -73,7 +80,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
     private var totalRetrospectiveCorrection: HKQuantity?
     
     private var negativeInsulinDamper: Double?
-    private var floatingCorrectionRangeAdjustment: Double?
+    private var glucoseMomentumReductionAdjustment: HKQuantity?
 
     private var refreshContext = RefreshContext.all
 
@@ -134,7 +141,7 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
         _ = self.refreshContext.remove(.status)
         reloadGroup.enter()
         deviceManager.loopManager.getLoopState { (manager, state) in
-            self.floatingCorrectionRangeAdjustment = state.floatingCorrectionRangeAdjustment
+            self.glucoseMomentumReductionAdjustment = state.glucoseMomentumReductionAdjustment
             self.retrospectiveGlucoseDiscrepancies = state.retrospectiveGlucoseDiscrepancies
             totalRetrospectiveCorrection = state.totalRetrospectiveCorrection
             negativeInsulinDamper = state.negativeInsulinDamper
@@ -278,8 +285,6 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
 
         var subtitleText = input.localizedDescription(forGlucoseUnit: glucoseChart.glucoseUnit) ?? ""
         
-        let fcrFormat = NSLocalizedString("Floating Correction Range: %1$@%", comment: "Floating Correction Range - adjustment")
-
         if input == .damper, let negativeInsulinDamper = negativeInsulinDamper {
             let formatter = NumberFormatter()
             formatter.usesSignificantDigits = false
@@ -296,6 +301,16 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             subtitleText = String(format: "%@\n%@", subtitleText, damper)
             
         }
+        if input == .momentum, let glucoseMomentumReductionAdjustment = glucoseMomentumReductionAdjustment {
+            let formatter = QuantityFormatter(for: glucoseChart.glucoseUnit)
+            let gcrString = String(
+                format: NSLocalizedString("Reduction: %1$@", comment: "Format string describing glucose momentum reduction. (1: glucose momentum reduction adjustment)"),
+                formatter.string(from: glucoseMomentumReductionAdjustment) ?? "?"
+            )
+            
+            subtitleText = String(format: "%@\n%@", subtitleText, gcrString)
+        }
+        
         if input == .retrospection,
             let lastDiscrepancy = retrospectiveGlucoseDiscrepancies?.last,
             let currentGlucose = deviceManager.glucoseStore.latestGlucose
@@ -312,13 +327,6 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
             )
             let isIntegralRetrospectiveCorrectionEnabled = UserDefaults.standard.integralRetrospectiveCorrectionEnabled
             
-            let fcrText: String
-            if let fcrAdjustment = floatingCorrectionRangeAdjustment, fcrAdjustment > 0 {
-                fcrText = String(format: fcrFormat, formatter.string(from: HKQuantity(unit: glucoseChart.glucoseUnit, doubleValue: fcrAdjustment)) ?? "?")
-            } else {
-                fcrText = ""
-            }
-            
             if isIntegralRetrospectiveCorrectionEnabled {
                 var integralEffectDisplay = "?"
                 var totalEffectDisplay = "?"
@@ -333,15 +341,8 @@ class PredictionTableViewController: LoopChartsTableViewController, Identifiable
                     integralEffectDisplay, totalEffectDisplay
                 )
                 subtitleText = String(format: "%@\n%@", retro, integralRetro)
-                if !fcrText.isEmpty {
-                    subtitleText = String(format: "%@\n%@", fcrText, subtitleText)
-                }
             } else {
-                if !fcrText.isEmpty {
-                    subtitleText = String(format: "%@\n%@\n%@", subtitleText, fcrText, retro)
-                } else {
-                    subtitleText = String(format: "%@\n%@", subtitleText, retro)
-                }
+                subtitleText = String(format: "%@\n%@", subtitleText, retro)
             }
         }
 

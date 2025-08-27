@@ -50,10 +50,9 @@ public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.AutoBolusCarbsActiveByDefault.rawValue) private var autoBolusCarbsActiveByDefault = false
 
     @AppStorage(UserDefaults.Key.CarbResponsiveRetrospectiveCorrectionEnabled.rawValue) private var isCarbResponsiveRetrospectiveCorrectionEnabled = false
-    @AppStorage(UserDefaults.Key.FloatingCorrectionRangeForCarbsOnBoardEnabled.rawValue) private var isFloatingCorrectionRangeForCarbsOnBoardEnabled = false
     
-    @AppStorage(UserDefaults.Key.FloatingCorrectionRangeEnabled.rawValue) private var isFloatingCorrectionRangeEnabled = false
-    @AppStorage(UserDefaults.Key.FloatingCorrectionRangeEnabledWhenAsleep.rawValue) private var isFloatingCorrectionRangeEnabledWhenAsleep = false
+    @AppStorage(UserDefaults.Key.GlucoseMomentumReductionEnabled.rawValue) private var isGlucoseMomentumReductionEnabled = false
+    @AppStorage(UserDefaults.Key.GlucoseMomentumReductionEnabledWhenAsleep.rawValue) private var isGlucoseMomentumReductionEnabledWhenAsleep = false
     
     var automaticDosingStrategy: AutomaticDosingStrategy
     var sleepSchedule: SleepSchedule?
@@ -90,20 +89,22 @@ public struct ExperimentsSettingsView: View {
                         name: NSLocalizedString("Negative Insulin Damper", comment: "Title of negative insulin damper experiment"),
                         enabled: isNegativeInsulinDamperEnabled)
                 }
+                Divider()
+                Text("🚧 🚧 🚧")
                 NavigationLink(destination: AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: $isAutoBolusCarbsEnabled, autoBolusCarbsActiveByDefault: $autoBolusCarbsActiveByDefault)) {
                     ExperimentRow(
                         name: NSLocalizedString("Auto-Bolus Carbs", comment: "Title of auto-bolus carbs experiment"),
                         enabled: isAutoBolusCarbsEnabled)
                 }
-                NavigationLink(destination: CarbReactiveRestrospectiveCorrection(isCarbReactiveRetrospectiveCorrectionEnabled: $isCarbResponsiveRetrospectiveCorrectionEnabled, isFloatingCorrectionRangeWithCarbsOnBoardEnabled: $isFloatingCorrectionRangeForCarbsOnBoardEnabled)) {
+                NavigationLink(destination: CarbReactiveRestrospectiveCorrection(isCarbReactiveRetrospectiveCorrectionEnabled: $isCarbResponsiveRetrospectiveCorrectionEnabled)) {
                     ExperimentRow(
                         name: NSLocalizedString("Carb-Reactive Retrospective Correction", comment: "Title of reactive-carb retrospective correction experiment"),
                         enabled: isCarbResponsiveRetrospectiveCorrectionEnabled)
                 }
-                NavigationLink(destination: FloatingCorrectionRangeEnabledSelectionView(isFloatingCorrectionRangeEnabled: $isFloatingCorrectionRangeEnabled, isFloatingCorrectionRangeEnabledWhenAsleep: $isFloatingCorrectionRangeEnabledWhenAsleep, sleepSchedule: sleepSchedule)) {
+                NavigationLink(destination: GlucoseMomentumReductionEnabledSelectionView(isGlucoseMomentumReductionEnabled: $isGlucoseMomentumReductionEnabled, isGlucoseMomentumReductionEnabledWhenAsleep: $isGlucoseMomentumReductionEnabledWhenAsleep, sleepSchedule: sleepSchedule)) {
                     ExperimentRow(
-                        name: NSLocalizedString("Floating Correction Range", comment: "Title of floating correction range experiment"),
-                        enabled: isFloatingCorrectionRangeEnabled)
+                        name: NSLocalizedString("Glucose Momentum Reduction", comment: "Title of glucose momentum reduction experiment"),
+                        enabled: isGlucoseMomentumReductionEnabled)
                 }
                 Spacer()
             }
@@ -119,10 +120,22 @@ public struct ExperimentsSettingsView: View {
         .onChange(of: isNegativeInsulinDamperEnabled) { _ in
             NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
         }
+        .onChange(of: isSleepScheduleAffectsNegativeInsulinDamperEnabled) { _ in
+            NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
+        }
         .onChange(of: isAutoBolusCarbsEnabled) { _ in
             NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
         }
         .onChange(of: autoBolusCarbsActiveByDefault) { _ in
+            NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
+        }
+        .onChange(of: isCarbResponsiveRetrospectiveCorrectionEnabled) {_ in
+            NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
+        }
+        .onChange(of: isGlucoseMomentumReductionEnabled) {_ in
+            NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
+        }
+        .onChange(of: isGlucoseMomentumReductionEnabledWhenAsleep) {_ in
             NotificationCenter.default.post(name: .AlgorithmExperimentsChanged, object: UserDefaults.standard, userInfo: nil)
         }
     }
@@ -141,9 +154,8 @@ extension UserDefaults {
         case AutoBolusCarbsEnabled = "com.loopkit.algorithmExperiments.autoBolusCarbsEnabled"
         case AutoBolusCarbsActiveByDefault = "com.loopkit.algorithmExperiments.autoBolusCarbsActiveByDefault"
         case CarbResponsiveRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.carbResponsiveRetrospectiveCorrectionEnabled"
-        case FloatingCorrectionRangeForCarbsOnBoardEnabled = "com.loopkit.algorithmExperiments.floatingCorrectionRangeForCarbsOnBoardEnabled"
-        case FloatingCorrectionRangeEnabled = "com.loopkit.algorithmExperiments.floatingCorrectionRangeEnabled"
-        case FloatingCorrectionRangeEnabledWhenAsleep = "com.loopkit.algorithmExperiments.floatingCorrectionRangeEnabledWhenAsleep"
+        case GlucoseMomentumReductionEnabled = "com.loopkit.algorithmExperiments.glucoseMomentumReductionEnabled"
+        case GlucoseMomentumReductionEnabledWhenAsleep = "com.loopkit.algorithmExperiments.glucoseMomentumReductionEnabledWhenAsleep"
     }
 
     var glucoseBasedApplicationFactorEnabled: Bool {
@@ -209,30 +221,21 @@ extension UserDefaults {
         }
     }
     
-    var floatingCorrectionRangeForCarbsOnBoardEnabled: Bool {
+    var glucoseMomentumReductionEnabled: Bool {
         get {
-            bool(forKey: Key.FloatingCorrectionRangeForCarbsOnBoardEnabled.rawValue) as Bool
+            bool(forKey: Key.GlucoseMomentumReductionEnabled.rawValue) as Bool
         }
         set {
-            set(newValue, forKey: Key.FloatingCorrectionRangeForCarbsOnBoardEnabled.rawValue)
+            set(newValue, forKey: Key.GlucoseMomentumReductionEnabled.rawValue)
         }
     }
     
-    var floatingCorrectionRangeEnabled: Bool {
+    var glucoseMomentumReductionEnabledWhenAsleep: Bool {
         get {
-            bool(forKey: Key.FloatingCorrectionRangeEnabled.rawValue) as Bool
+            bool(forKey: Key.GlucoseMomentumReductionEnabledWhenAsleep.rawValue) as Bool
         }
         set {
-            set(newValue, forKey: Key.FloatingCorrectionRangeEnabled.rawValue)
-        }
-    }
-    
-    var floatingCorrectionRangeEnabledWhenAsleep: Bool {
-        get {
-            bool(forKey: Key.FloatingCorrectionRangeEnabledWhenAsleep.rawValue) as Bool
-        }
-        set {
-            set(newValue, forKey: Key.FloatingCorrectionRangeEnabledWhenAsleep.rawValue)
+            set(newValue, forKey: Key.GlucoseMomentumReductionEnabledWhenAsleep.rawValue)
         }
     }
 

@@ -53,37 +53,30 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         return try! decoder.decode([PredictedGlucoseValue].self, from: try! Data(contentsOf: url))
     }
     
-    func testFloatingCorrectionRange() {
-        
+    func testGlucoseMomentumReduction() {        
         let glucose = SimpleGlucoseValue(startDate: Date(), quantity: HKQuantity(unit: .mgdL, doubleValue: 100))
         let prevGlucoseDate = glucose.startDate.addingTimeInterval(.minutes(-20))
         
         // out of date range:
-        XCTAssertEqual(0.0, LoopDataManager.calculateFloatingCorrectionRangeAdjustment(glucose, HistoricalGlucoseValue(startDate: glucose.startDate.addingTimeInterval(.minutes(-22)), quantity: HKQuantity(unit: .mgdL, doubleValue: 0.0)), 0, 0))
-        XCTAssertEqual(0.0, LoopDataManager.calculateFloatingCorrectionRangeAdjustment(glucose, HistoricalGlucoseValue(startDate: glucose.startDate.addingTimeInterval(.minutes(-18)), quantity: HKQuantity(unit: .mgdL, doubleValue: 0.0)), 0, 0))
+        XCTAssertEqual(0.0, LoopDataManager.calculateGlucoseMomentumReduction(glucose, HistoricalGlucoseValue(startDate: glucose.startDate.addingTimeInterval(.minutes(-22)), quantity: HKQuantity(unit: .mgdL, doubleValue: 0.0))))
+        XCTAssertEqual(0.0, LoopDataManager.calculateGlucoseMomentumReduction(glucose, HistoricalGlucoseValue(startDate: glucose.startDate.addingTimeInterval(.minutes(-18)), quantity: HKQuantity(unit: .mgdL, doubleValue: 0.0))))
         
         // prevGlucose was higher than glucose
-        XCTAssertEqual(0.0, LoopDataManager.calculateFloatingCorrectionRangeAdjustment(glucose, HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 101.0)), 0, 0))
+        XCTAssertEqual(0.0, LoopDataManager.calculateGlucoseMomentumReduction(glucose, HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 101.0))))
 
         
-        for i in 0...60 {
+        for i in 0...30 {
             let delta = Double(i)
             let prevGlucose = HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 100.0 - delta))
 
-            for w in 0...10 {
-                let weight = Double(w) / 10.0
-                XCTAssertEqual( weight * delta * delta / 80.0, LoopDataManager.calculateFloatingCorrectionRangeAdjustment(glucose, prevGlucose, 0, weight), accuracy: 1E-6)
-            }
+            XCTAssertEqual(-delta * delta / 80.0, LoopDataManager.calculateGlucoseMomentumReduction(glucose, prevGlucose), accuracy: 1E-6)
         }
         
-        for i in 61...100 {
+        for i in 31...50 {
             let delta = Double(i)
             let prevGlucose = HistoricalGlucoseValue(startDate: prevGlucoseDate, quantity: HKQuantity(unit: .mgdL, doubleValue: 100.0 - delta))
 
-            for w in 0...10 {
-                let weight = Double(w) / 10.0
-                XCTAssertEqual( weight * 3 * delta / 4.0, LoopDataManager.calculateFloatingCorrectionRangeAdjustment(glucose, prevGlucose, 0, weight), accuracy: 1E-6)
-            }
+            XCTAssertEqual( 11.25 - 3 * delta / 4.0, LoopDataManager.calculateGlucoseMomentumReduction(glucose, prevGlucose), accuracy: 1E-6)
         }
     }
     
