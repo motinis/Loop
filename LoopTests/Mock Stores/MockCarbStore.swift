@@ -140,6 +140,13 @@ class MockCarbStore: CarbStoreProtocol {
         completion(.success([]))
     }
     
+    public func carbsOnBoard<Sample: CarbEntry>(of samples: [Sample], at date: Date, effectVelocities: [GlucoseEffectVelocity]? = nil) throws -> CarbValue {
+        if let carbsOnBoard = carbsOnBoard {
+            return carbsOnBoard
+        }
+        throw CarbStore.CarbStoreError.notConfigured
+    }
+    
     func carbsOnBoard(at date: Date, effectVelocities: [GlucoseEffectVelocity]?, completion: @escaping (CarbStoreResult<CarbValue>) -> Void) {
         if let carbsOnBoard = carbsOnBoard {
             return completion(.success(carbsOnBoard))

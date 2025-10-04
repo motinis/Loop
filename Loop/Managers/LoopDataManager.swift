@@ -393,8 +393,8 @@ final class LoopDataManager {
     private var negativeInsulinDamperCachedBaseDate: Date = .distantPast
     
     // we weight CRRC such that it has full effect at 10 grams COB
+    static let CRRC_MAX_WEIGHT = 0.5
     private static let CRRC_COB_WEIGHTING_FACTOR = 1.0 / 10
-    private static let CRRC_MAX_WEIGHT = 0.5
     private static let CRRC_CARB_EFFECT_MULTIPLIER = 2.0
     
     private var crrcCarbEffect: [GlucoseEffect]?
@@ -1310,7 +1310,7 @@ extension LoopDataManager {
     }
     
     static func calculateCRRCWeight(_ cobGrams: Double) -> Double {
-        return Self.CRRC_MAX_WEIGHT * min(1, max(0, cobGrams * Self.CRRC_COB_WEIGHTING_FACTOR))
+        return min(1, max(0, cobGrams * Self.CRRC_COB_WEIGHTING_FACTOR))
     }
     
     static func calculateCarbResponsiveRCCarbEffect(_ effects: [GlucoseEffect]) -> [GlucoseEffect] {
@@ -1390,86 +1390,7 @@ extension LoopDataManager {
         // All outstanding potential insulin delivery
         return pendingTempBasalInsulin + pendingBolusAmount
     }
-    
-    fileprivate func getAceWeightedCarbsEffect(lastGlucoseDate: Date, carbEntry: NewCarbEntry, insulinCounteractionEffects: [GlucoseEffectVelocity], baseWeight: Double, retrospectionInterval: TimeInterval? = nil, retrospectiveStart: Date? = nil) throws -> [GlucoseEffect] {
-        
-        let retrospectionInterval = retrospectionInterval ?? type(of: retrospectiveCorrection).retrospectionInterval
-        let retrospectiveStart = retrospectiveStart ?? lastGlucoseDate.addingTimeInterval(-retrospectionInterval)
-        
-        let forwardIntervalDate = lastGlucoseDate.addingTimeInterval(retrospectionInterval)
-        let widenedWindowDate = forwardIntervalDate.addingTimeInterval(carbStore.delta)
-        
-        var carbEffect = try carbStore.glucoseEffects(
-            of: [carbEntry],
-            startingAt: retrospectiveStart,
-            endingAt: nil,
-            effectVelocities: insulinCounteractionEffects
-        )
-                
-        guard !carbEffect.isEmpty, baseWeight < 1 else {
-            return carbEffect
-        }
-        
-        // simple calculation for weight which assumes a uniform carb effect (i.e., a "block" shape)
-        let startOfCarbEffect = carbEntry.startDate.addingTimeInterval(carbStore.delay)
-        
-        guard startOfCarbEffect < lastGlucoseDate else {
-            return carbEffect
-        }
-        
-        var weight = max(0, min(1, 1 - lastGlucoseDate.timeIntervalSince(startOfCarbEffect) / type(of: retrospectiveCorrection).retrospectionInterval))
-        
-        // for simplicity this is averaged with a bucketed calculation; note that if the implementation changes such that effects are aligned to the lastGlucoseDate (instead of delta on the clock), then the averaging isn't needed since the bucketed calculation would be accurate
-        let windowEffects = carbEffect.filterDateRange(retrospectiveStart, widenedWindowDate)
-        
-        if windowEffects.count > 2 {
-            var retroIntervalWeight = 0.0
-            var nextIntervalWeight = 0.0
-            var prevValue = windowEffects[0].quantity.doubleValue(for: .mgdL)
 
-            for effect in windowEffects {
-                let value = effect.quantity.doubleValue(for: .mgdL)
-                if retrospectiveStart < effect.startDate {
-                    if effect.startDate <= lastGlucoseDate {
-                        retroIntervalWeight += value - prevValue
-                    } else if effect.startDate <= forwardIntervalDate {
-                        nextIntervalWeight += value - prevValue
-                    }
-                }
-                prevValue = value
-            }
-            
-            let binWeight = nextIntervalWeight == 0 ? 0.0 : 1 - max(0, min(1.0, retroIntervalWeight / nextIntervalWeight))
-            
-            weight = 0.5 * (weight + binWeight)            
-        }
-        
-        guard weight < 1 else {
-            return carbEffect
-        }
-        
-        weight = baseWeight + weight * (1 - baseWeight)
-        
-        let weightSlope = (1 - weight) * carbStore.delta / LoopMath.retrospectiveCorrectionEffectDuration
-        var prevValue = 0.0
-        for (index, effect) in carbEffect.enumerated() {
-            if index == 0 || effect.startDate <= lastGlucoseDate {
-                prevValue = effect.quantity.doubleValue(for: .mgdL)
-                continue
-            }
-            let value = effect.quantity.doubleValue(for: .mgdL)
-            let delta = value - prevValue
-            carbEffect[index] = GlucoseEffect(startDate: effect.startDate, quantity: HKQuantity(unit: .mgdL, doubleValue: carbEffect[index - 1].quantity.doubleValue(for: .mgdL) + weight * delta))
-            
-            weight = min(1.0, weight + weightSlope)
-            prevValue = value
-        }
-        return carbEffect
-    }
-    
-    fileprivate func convertToNewCarbEntries(_ recentEntries: [StoredCarbEntry]) -> [NewCarbEntry] {
-        return recentEntries.map { NewCarbEntry(quantity: $0.quantity, startDate: $0.startDate, foodType: $0.foodType, absorptionTime: $0.absorptionTime) }
-    }
     
     /// - Throws:
     ///     - LoopError.missingDataError
@@ -1555,6 +1476,7 @@ extension LoopDataManager {
                     
                     // MOTI FIXME need to support COB here!
                     var potentialCrrcCarbEffect: [GlucoseEffect]? = nil
+                    var updatedCob: CarbValue? = nil
                     if UserDefaults.standard.carbResponsiveRetrospectiveCorrection {
                         potentialCrrcCarbEffect = try carbStore.glucoseEffects(
                             of: entries,
@@ -1562,9 +1484,14 @@ extension LoopDataManager {
                             endingAt: nil,
                             effectVelocities: insulinCounteractionEffects.filter{$0.endDate <= retrospectiveStart}
                         )
+                        updatedCob = try carbStore.carbsOnBoard(
+                            of: entries,
+                            at: lastGlucoseDate,
+                            effectVelocities: insulinCounteractionEffects
+                        )
                     }
 
-                    retrospectiveGlucoseEffect = computeRetrospectiveGlucoseEffect(startingAt: glucose, carbEffects: potentialCarbEffect, crrcEffects: potentialCrrcCarbEffect).effect
+                    retrospectiveGlucoseEffect = computeRetrospectiveGlucoseEffect(startingAt: glucose, carbEffects: potentialCarbEffect, crrcCarbEffects: potentialCrrcCarbEffect, carbsOnBoard: updatedCob).effect
                 }
             } else if let carbEffect = carbEffectOverride ?? self.carbEffect {
                 effects.append(carbEffect)
@@ -2104,7 +2031,8 @@ extension LoopDataManager {
         retrospectiveGlucoseEffect = result.effect
     }
 
-    private func computeRetrospectiveGlucoseEffect(startingAt glucose: GlucoseValue, carbEffects: [GlucoseEffect], crrcCarbEffects: [GlucoseEffect]?) -> RetrospectiveCorrectionResult {
+    private func computeRetrospectiveGlucoseEffect(startingAt glucose: GlucoseValue, carbEffects: [GlucoseEffect], crrcCarbEffects: [GlucoseEffect]?,
+                                                   carbsOnBoard : CarbValue? = nil) -> RetrospectiveCorrectionResult {
 
         let insulinSensitivity = settings.insulinSensitivitySchedule!.quantity(at: glucose.startDate)
         let basalRate = settings.basalRateSchedule!.value(at: glucose.startDate)
@@ -2124,9 +2052,8 @@ extension LoopDataManager {
             retrospectiveCorrectionGroupingInterval: LoopMath.retrospectiveCorrectionGroupingInterval
         )
         
-        // MOTI FIXME - need to update when replacing carb entry!
-        let cob = carbsOnBoard?.value ?? 0
-        var weight = min(1, max(0, cob * Self.CRRC_COB_WEIGHTING_FACTOR))
+        let cob = carbsOnBoard?.value ?? self.carbsOnBoard?.value ?? 0
+        var weight = Self.calculateCRRCWeight(cob)
         
         guard weight > 0, UserDefaults.standard.carbResponsiveRetrospectiveCorrection, let crrcCarbEffects = crrcCarbEffects, !crrcCarbEffects.isEmpty else {
             return result
@@ -2140,14 +2067,14 @@ extension LoopDataManager {
         crMultipliedRetroResult.glucoseDiscrepancies = insulinCounteractionEffects.subtracting(crrcMultipliedCarbEffects, withUniformInterval: carbStore.delta)
         
         if let crLastSum = crRetroResult.glucoseDiscrepanciesSummed?.last?.quantity.doubleValue(for: .mgdL), let crMultipliedLastSum = crMultipliedRetroResult.glucoseDiscrepanciesSummed?.last?.quantity.doubleValue(for: .mgdL), crLastSum > crMultipliedLastSum, crMultipliedLastSum > 0 {
-            // multiply weight by min(1, 1 / (relative excess absorption beyond 1 Carb Effect)) - this ensures that if carbs are severely undercounted and/or their
+            // multiply weight by min(1, 1 / sqrt(2 * relative absorption to carbEffect) - this ensures that if carbs are severely undercounted and/or their
             // absorption is severely over-estimated, that the overall effect won't be too strong
             
             // note that crLastSum is excess over 1 carb effect, and crMultipliedLastSum is excess over CRRC_CARB_EFFECT_MULTIPLIER * carb effect
             // therefore crLastSum = crMultipliedLastSum + discrepanciesSumForCarbEffect * (CRRC_CARB_EFFECT_MULTIPLIER - 1)
             let discrepanciesSumForCarbEffect = (crLastSum - crMultipliedLastSum) / (Self.CRRC_CARB_EFFECT_MULTIPLIER - 1)
-            let relativeExcess = (Self.CRRC_CARB_EFFECT_MULTIPLIER - 1) + crMultipliedLastSum / discrepanciesSumForCarbEffect
-            weight *= min(1, 1 / relativeExcess)
+            let relativeAbsorption = Self.CRRC_CARB_EFFECT_MULTIPLIER + crMultipliedLastSum / discrepanciesSumForCarbEffect
+            weight *= min(1, 1 / sqrt(2 * relativeAbsorption))
         }
         
         weight = min(weight, Self.CRRC_MAX_WEIGHT)
@@ -3281,6 +3208,7 @@ extension GlucoseRangeSchedule {
 }
 
 fileprivate struct RetrospectiveCorrectionResult {
+    
     var glucoseDiscrepancies: [GlucoseEffect] = [] {
         didSet {
             glucoseDiscrepanciesSummed = LoopDataManager.sumGlucoseDiscrepancies(glucoseDiscrepancies)
