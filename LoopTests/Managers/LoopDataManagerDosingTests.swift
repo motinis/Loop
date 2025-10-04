@@ -272,31 +272,32 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
     }
     
     func testCarbResponsiveRetrospectiveCorrectionActive() {
-        // The regular RC contribution value (standardTotalRC) was simply taken via debugger for each scenario and rounded at 4 digits
-
+        let step = 0.01
         for i in 1...10 {
             // use different cobValues so it's easier to see in messages which test failed
             let j = Double(i)
-            let step = 0.01
+            
+            // note that expectedRelativeAbsorption is copied out from debugging LoopDataManager; it is very sensitive to the parameters and data used in the tests
+            
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 1 * step, carbFactor: 1.5, absorptionFactor: 3, expectedRelativeAbsorption: 2.46)
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 2 * step, carbFactor: 1.5, absorptionFactor: 4, expectedRelativeAbsorption: 3.95)
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 3 * step, carbFactor: 1.5, absorptionFactor: 6, expectedRelativeAbsorption: 8.8)
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 4 * step, carbFactor: 1.5, absorptionFactor: 8, expectedRelativeAbsorption: 15.64)
+            
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 11 * step, carbFactor: 2, absorptionFactor: 3, expectedRelativeAbsorption: 2.96)
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 12 * step, carbFactor: 2, absorptionFactor: 4, expectedRelativeAbsorption: 5.21)
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 13 * step, carbFactor: 2, absorptionFactor: 6, expectedRelativeAbsorption: 11.73)
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 14 * step, carbFactor: 2, absorptionFactor: 8, expectedRelativeAbsorption: 20.85)
+            
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 21 * step, carbFactor: 2.5, absorptionFactor: 3, expectedRelativeAbsorption: 3.67)
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 22 * step, carbFactor: 2.5, absorptionFactor: 4, expectedRelativeAbsorption: 6.52)
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 23 * step, carbFactor: 2.5, absorptionFactor: 6, expectedRelativeAbsorption: 14.66)
+            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 24 * step, carbFactor: 2.5, absorptionFactor: 8, expectedRelativeAbsorption: 26.06)
 
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j, carbFactor: 2, absorptionFactor: 3)
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + step, carbFactor: 2, absorptionFactor: 4)
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 2 * step, carbFactor: 2, absorptionFactor: 6)
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 3 * step, carbFactor: 2, absorptionFactor: 8)
-
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 10 * step, carbFactor: 1.5, absorptionFactor: 3)
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 11 * step, carbFactor: 1.5, absorptionFactor: 4)
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 12 * step, carbFactor: 1.5, absorptionFactor: 6)
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 13 * step, carbFactor: 1.5, absorptionFactor: 8)
-
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 20 * step, carbFactor: 2.5, absorptionFactor: 3)
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 21 * step, carbFactor: 2.5, absorptionFactor: 4)
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 22 * step, carbFactor: 2.5, absorptionFactor: 6)
-            doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: j + 23 * step, carbFactor: 2.5, absorptionFactor: 8)
         }
     }
     
-    func doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: Double, carbFactor: Double, absorptionFactor: Double) {
+    func doTestCarbResponsiveRetrospectiveCorrectionActive(cobValue: Double, carbFactor: Double, absorptionFactor: Double, expectedRelativeAbsorption: Double) {
         // simulate small and very slow acting carbs which just "activated" when the retrospective begins.
         // this scenario does have ICE, however the carb effect will be significantly less, resulting in CRRC being active
                         
@@ -348,7 +349,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         XCTAssertNotNil(standardTotalRC)
         XCTAssertNotNil(predTotal)
         
-        let expectedWeight = LoopDataManager.calculateCRRCWeight(cobValue)
+        let expectedWeight = min(LoopDataManager.CRRC_MAX_WEIGHT, LoopDataManager.calculateCRRCWeight(cobValue) * 1/sqrt(2 * expectedRelativeAbsorption))
         let expectedRC = (1 - expectedWeight) * standardTotalRC! + expectedWeight * predTotal!
 
         XCTAssertNotNil(totalRetrospectiveCorrection)
