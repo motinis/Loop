@@ -214,6 +214,7 @@ class LoopDataManagerTests: XCTestCase {
         if autoBolusCarbs {
             UserDefaults.standard.autoBolusCarbsEnabled = true
             UserDefaults.standard.autoBolusCarbsActiveByDefault = true
+            UserDefaults.standard.autoBolusCarbsApplicationFactor = 1.0
         }
         if carbResponsiveRetrospectiveCorrectionEnabled {
             UserDefaults.standard.carbResponsiveRetrospectiveCorrection = true
@@ -228,6 +229,7 @@ class LoopDataManagerTests: XCTestCase {
     override func tearDown() {
         UserDefaults.standard.autoBolusCarbsEnabled = false
         UserDefaults.standard.autoBolusCarbsActiveByDefault = false
+        UserDefaults.standard.autoBolusCarbsApplicationFactor = UserDefaults.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR
         UserDefaults.standard.carbResponsiveRetrospectiveCorrection = false
     }
 }

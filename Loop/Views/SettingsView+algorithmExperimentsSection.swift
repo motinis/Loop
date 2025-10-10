@@ -48,6 +48,7 @@ public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.SleepScheduleAffectsNegativeInsulinDamperEnabled.rawValue) private var isSleepScheduleAffectsNegativeInsulinDamperEnabled = false
     @AppStorage(UserDefaults.Key.AutoBolusCarbsEnabled.rawValue) private var isAutoBolusCarbsEnabled = false
     @AppStorage(UserDefaults.Key.AutoBolusCarbsActiveByDefault.rawValue) private var autoBolusCarbsActiveByDefault = false
+    @AppStorage(UserDefaults.Key.AutoBolusCarbsApplicationFactor.rawValue) private var autoBolusCarbsApplicationFactor = UserDefaults.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR
 
     @AppStorage(UserDefaults.Key.CarbResponsiveRetrospectiveCorrectionEnabled.rawValue) private var isCarbResponsiveRetrospectiveCorrectionEnabled = false
     
@@ -91,7 +92,7 @@ public struct ExperimentsSettingsView: View {
                 }
                 Divider()
                 Text("🚧 🚧 🚧")
-                NavigationLink(destination: AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: $isAutoBolusCarbsEnabled, autoBolusCarbsActiveByDefault: $autoBolusCarbsActiveByDefault)) {
+                NavigationLink(destination: AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: $isAutoBolusCarbsEnabled, autoBolusCarbsActiveByDefault: $autoBolusCarbsActiveByDefault, autoBolusApplicationFactor: $autoBolusCarbsApplicationFactor)) {
                     ExperimentRow(
                         name: NSLocalizedString("Auto-Bolus Carbs", comment: "Title of auto-bolus carbs experiment"),
                         enabled: isAutoBolusCarbsEnabled)
@@ -146,6 +147,9 @@ extension Notification.Name {
 }
 
 extension UserDefaults {
+    
+    static let DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR = 0.8
+    
     fileprivate enum Key: String {
         case GlucoseBasedApplicationFactorEnabled = "com.loopkit.algorithmExperiments.glucoseBasedApplicationFactorEnabled"
         case IntegralRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.integralRetrospectiveCorrectionEnabled"
@@ -153,6 +157,7 @@ extension UserDefaults {
         case SleepScheduleAffectsNegativeInsulinDamperEnabled = "com.loopkit.algorithmExperiments.sleepScheduleAffectsNegativeInsulinDamperEnabled"
         case AutoBolusCarbsEnabled = "com.loopkit.algorithmExperiments.autoBolusCarbsEnabled"
         case AutoBolusCarbsActiveByDefault = "com.loopkit.algorithmExperiments.autoBolusCarbsActiveByDefault"
+        case AutoBolusCarbsApplicationFactor = "com.loopkit.algorithmExperiments.autoBolusCarbsApplicationFactor"
         case CarbResponsiveRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.carbResponsiveRetrospectiveCorrectionEnabled"
         case GlucoseMomentumReductionEnabled = "com.loopkit.algorithmExperiments.glucoseMomentumReductionEnabled"
         case GlucoseMomentumReductionEnabledWhenAsleep = "com.loopkit.algorithmExperiments.glucoseMomentumReductionEnabledWhenAsleep"
@@ -211,6 +216,17 @@ extension UserDefaults {
             set(newValue, forKey: Key.AutoBolusCarbsActiveByDefault.rawValue)
         }
     }
+    
+    var autoBolusCarbsApplicationFactor: Double {
+        get {
+            let result = double(forKey: Key.AutoBolusCarbsApplicationFactor.rawValue) as Double
+            return result != 0.0 ? result : Self.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR
+        }
+        set {
+            set(newValue, forKey: Key.AutoBolusCarbsApplicationFactor.rawValue)
+        }
+    }
+    
     
     var carbResponsiveRetrospectiveCorrection: Bool {
         get {

@@ -14,6 +14,17 @@ import LoopKitUI
 public struct AutoBolusCarbsSelectionView: View {
     @Binding var isAutoBolusCarbsEnabled: Bool
     @Binding var autoBolusCarbsActiveByDefault: Bool
+    @Binding var autoBolusApplicationFactor: Double
+    
+    private let factors = Array(stride(from: 0.2, through: 1.0, by: 0.1))
+    
+    private let percentFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .percent
+        formatter.maximumFractionDigits = 0
+        return formatter
+    }()
+
     
     public var body: some View {
         
@@ -25,7 +36,7 @@ public struct AutoBolusCarbsSelectionView: View {
 
                 Divider()
 
-                Text(String(format: NSLocalizedString("Auto-Bolus Carbs (ABC) is a modification of how Loop corrects each loop cycle. When enabled and active, Loop will check how much insulin is needed to cover existing carbs (similar to doing a manual bolus but without correcting for grucose). If this amount is greater than the usual correction, a bolus for that amount will be given. Overrides can also be used to activate or deactivate. When ABC is enabled and active a %@ will appear beside Active Carbohydrates on the status screen.", comment: "Description of Auto-Bolus Carbs toggles."), "🔸"))
+                Text(String(format: NSLocalizedString("Auto-Bolus Carbs (ABC) is a modification of how Loop corrects each loop cycle. When enabled and active, Loop will check how much insulin is needed to cover existing carbs (similar to doing a manual bolus but without correcting for grucose). If this amount times the application factor is greater than the usual correction, a bolus for that amount will be given. Overrides can also be used to activate or deactivate. When ABC is enabled and active a %@ will appear beside Active Carbohydrates on the status screen.", comment: "Description of Auto-Bolus Carbs toggles."), "🔸"))
                     .foregroundColor(.secondary)
                 Divider()
 
@@ -35,6 +46,17 @@ public struct AutoBolusCarbsSelectionView: View {
                 Toggle(NSLocalizedString("Auto-Bolus Carbs Active by Default", comment: "Title for Auto-Bolus Carbs Active by Default toggle"), isOn: $autoBolusCarbsActiveByDefault)
                     .padding(.top, 20)
                     .disabled(!isAutoBolusCarbsEnabled)
+
+                HStack {
+                    Text(NSLocalizedString("Application Factor", comment: "Title for Auto-Bolus Carbs Application Factor"))
+                    Spacer()
+                    Picker(selection: $autoBolusApplicationFactor, label: EmptyView()) {
+                        ForEach(factors, id: \.self) { factor in
+                            Text(percentFormatter.string(from: factor)!)
+                        }
+                    }.pickerStyle(.menu)
+                }
+
             }
             .padding()
         }
@@ -45,6 +67,6 @@ public struct AutoBolusCarbsSelectionView: View {
 
 struct AutoBolusCarbsSelectionView_Previews: PreviewProvider {
     static var previews: some View {
-        AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: .constant(true), autoBolusCarbsActiveByDefault: .constant(false))
+        AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: .constant(true), autoBolusCarbsActiveByDefault: .constant(false), autoBolusApplicationFactor: .constant(0.8))
     }
 }

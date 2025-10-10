@@ -2381,7 +2381,7 @@ extension LoopDataManager {
                     let posVelocityAndRC = FeatureFlags.usePositiveMomentumAndRCForManualBoluses
                     let pendingInsulin = try getPendingInsulin()
                     if let recommendation = try recommendBolus(considerPositiveVelocityAndRC: posVelocityAndRC, pendingInsulin: pendingInsulin, provideBreakdown: false), let totalCobAmount = try getTotalCobCorrectionAmount(considerPositiveVelocityAndRC: posVelocityAndRC, pendingInsulin: pendingInsulin) {
-                        let amount = min(recommendation.amount, volumeRounder()(min(iobHeadroom, totalCobAmount)))
+                        let amount = volumeRounder()(min(iobHeadroom, UserDefaults.standard.autoBolusCarbsApplicationFactor * min(recommendation.amount, totalCobAmount)))
                         if amount > 0 {
                             autoBolusCarbsAmount = amount
                         }
