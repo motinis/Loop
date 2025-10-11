@@ -2409,9 +2409,9 @@ extension LoopDataManager {
                 volumeRounder = nil
             }
             
-            let dosingStrategty = autoBolusCarbsAmount > 0 ? .automaticBolus : settings.automaticDosingStrategy
+            let dosingStrategy = autoBolusCarbsAmount > 0 ? .automaticBolus : settings.automaticDosingStrategy
                         
-            dosingRecommendation = getDosingRecommendation(dosingStrategy: dosingStrategty, glucose: glucose, predictedGlucose: predictedGlucose, iobHeadroom: iobHeadroom, glucoseTargetRange: glucoseTargetRange, insulinSensitivity: insulinSensitivity, basalRateSchedule: basalRateSchedule, startDate: startDate, bolusApplicationFactor: bolusApplicationFactor, volumeRounder: volumeRounder)
+            dosingRecommendation = getDosingRecommendation(dosingStrategy: dosingStrategy, glucose: glucose, predictedGlucose: predictedGlucose, iobHeadroom: iobHeadroom, glucoseTargetRange: glucoseTargetRange, insulinSensitivity: insulinSensitivity, basalRateSchedule: basalRateSchedule, startDate: startDate, bolusApplicationFactor: bolusApplicationFactor, volumeRounder: volumeRounder)
             
             if autoBolusCarbsAmount > dosingRecommendation?.bolusUnits ?? 0.0 {
                 logger.info("Recommendation is to auto-bolus carbs as it will give more insulin")
