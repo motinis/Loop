@@ -2089,7 +2089,8 @@ extension LoopDataManager {
             retrospectiveCorrectionGroupingInterval: LoopMath.retrospectiveCorrectionGroupingInterval
         )
         
-        guard let crRetrospectiveTotalGlucoseCorrection = crMultipliedRetroResult.totalGlucoseCorrection, crRetrospectiveTotalGlucoseCorrection.doubleValue(for: .mgdL) > 0 else {
+        guard crMultipliedRetroResult.totalGlucoseCorrection?.doubleValue(for: .mgdL) ?? 0 >
+                max(0, result.totalGlucoseCorrection?.doubleValue(for: .mgdL) ?? 0) else {
             return result
         }
  
@@ -2378,12 +2379,27 @@ extension LoopDataManager {
 
             if autoBolusCarbsEnabledAndActive {
                 do {
-                    let posVelocityAndRC = FeatureFlags.usePositiveMomentumAndRCForManualBoluses
-                    let pendingInsulin = try getPendingInsulin()
-                    if let recommendation = try recommendBolus(considerPositiveVelocityAndRC: posVelocityAndRC, pendingInsulin: pendingInsulin, provideBreakdown: false), let totalCobAmount = try getTotalCobCorrectionAmount(considerPositiveVelocityAndRC: posVelocityAndRC, pendingInsulin: pendingInsulin) {
-                        let amount = volumeRounder()(min(iobHeadroom, UserDefaults.standard.autoBolusCarbsApplicationFactor * min(recommendation.amount, totalCobAmount)))
-                        if amount > 0 {
-                            autoBolusCarbsAmount = amount
+                    let glucose_mgdL = glucose.quantity.doubleValue(for: .mgdL)
+                    let lower_mgdL = glucoseTargetRange!.quantityRange(at: now()).lowerBound.doubleValue(for: .mgdL)
+                    let suspend_mgdL = settings.suspendThreshold?.quantity.doubleValue(for: .mgdL) ?? lower_mgdL // fallback of lower is consistent with dose calculation
+                    let threshold_mgdL = suspend_mgdL + UserDefaults.standard.autoBolusCarbsThresholdPercentage * (lower_mgdL - suspend_mgdL)
+                    
+                    if glucose_mgdL >= threshold_mgdL {
+                        let maxWeight : Double
+                        if glucose_mgdL >= lower_mgdL {
+                            maxWeight = 1.0
+                        } else {
+                            maxWeight = (glucose_mgdL - threshold_mgdL) / (lower_mgdL - threshold_mgdL)
+                        }
+                        let abcApplicationFactor = (1 - maxWeight) * UserDefaults.standard.autoBolusCarbsApplicationFactorMin +
+                                                         maxWeight * UserDefaults.standard.autoBolusCarbsApplicationFactorMax
+                        let posVelocityAndRC = FeatureFlags.usePositiveMomentumAndRCForManualBoluses
+                        let pendingInsulin = try getPendingInsulin()
+                        if let recommendation = try recommendBolus(considerPositiveVelocityAndRC: posVelocityAndRC, pendingInsulin: pendingInsulin, provideBreakdown: false), let totalCobAmount = try getTotalCobCorrectionAmount(considerPositiveVelocityAndRC: posVelocityAndRC, pendingInsulin: pendingInsulin) {
+                            let amount = volumeRounder()(min(iobHeadroom, abcApplicationFactor * min(recommendation.amount, totalCobAmount)))
+                            if amount > 0 {
+                                autoBolusCarbsAmount = amount
+                            }
                         }
                     }
                 } catch {

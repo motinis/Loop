@@ -48,7 +48,9 @@ public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.SleepScheduleAffectsNegativeInsulinDamperEnabled.rawValue) private var isSleepScheduleAffectsNegativeInsulinDamperEnabled = false
     @AppStorage(UserDefaults.Key.AutoBolusCarbsEnabled.rawValue) private var isAutoBolusCarbsEnabled = false
     @AppStorage(UserDefaults.Key.AutoBolusCarbsActiveByDefault.rawValue) private var autoBolusCarbsActiveByDefault = false
-    @AppStorage(UserDefaults.Key.AutoBolusCarbsApplicationFactor.rawValue) private var autoBolusCarbsApplicationFactor = UserDefaults.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR
+    @AppStorage(UserDefaults.Key.AutoBolusCarbsThresholdPercentage.rawValue) private var autoBolusCarbsThresholdPercentage = UserDefaults.DEFAULT_AUTO_BOLUS_CARBS_THRESHOLD_PERCENTAGE
+    @AppStorage(UserDefaults.Key.AutoBolusCarbsApplicationFactorMin.rawValue) private var autoBolusCarbsApplicationFactorMin = UserDefaults.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR_MIN
+    @AppStorage(UserDefaults.Key.AutoBolusCarbsApplicationFactorMax.rawValue) private var autoBolusCarbsApplicationFactorMax = UserDefaults.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR_MAX
 
     @AppStorage(UserDefaults.Key.CarbResponsiveRetrospectiveCorrectionEnabled.rawValue) private var isCarbResponsiveRetrospectiveCorrectionEnabled = false
     
@@ -92,7 +94,7 @@ public struct ExperimentsSettingsView: View {
                 }
                 Divider()
                 Text("🚧 🚧 🚧")
-                NavigationLink(destination: AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: $isAutoBolusCarbsEnabled, autoBolusCarbsActiveByDefault: $autoBolusCarbsActiveByDefault, autoBolusApplicationFactor: $autoBolusCarbsApplicationFactor)) {
+                NavigationLink(destination: AutoBolusCarbsSelectionView(isAutoBolusCarbsEnabled: $isAutoBolusCarbsEnabled, activeByDefault: $autoBolusCarbsActiveByDefault, thresholdPercentage: $autoBolusCarbsThresholdPercentage, applicationFactorMin: $autoBolusCarbsApplicationFactorMin, applicationFactorMax: $autoBolusCarbsApplicationFactorMax)) {
                     ExperimentRow(
                         name: NSLocalizedString("Auto-Bolus Carbs", comment: "Title of auto-bolus carbs experiment"),
                         enabled: isAutoBolusCarbsEnabled)
@@ -148,7 +150,9 @@ extension Notification.Name {
 
 extension UserDefaults {
     
-    static let DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR = 0.8
+    static let DEFAULT_AUTO_BOLUS_CARBS_THRESHOLD_PERCENTAGE = 0.0
+    static let DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR_MIN = 0.2
+    static let DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR_MAX = 0.8
     
     fileprivate enum Key: String {
         case GlucoseBasedApplicationFactorEnabled = "com.loopkit.algorithmExperiments.glucoseBasedApplicationFactorEnabled"
@@ -157,7 +161,9 @@ extension UserDefaults {
         case SleepScheduleAffectsNegativeInsulinDamperEnabled = "com.loopkit.algorithmExperiments.sleepScheduleAffectsNegativeInsulinDamperEnabled"
         case AutoBolusCarbsEnabled = "com.loopkit.algorithmExperiments.autoBolusCarbsEnabled"
         case AutoBolusCarbsActiveByDefault = "com.loopkit.algorithmExperiments.autoBolusCarbsActiveByDefault"
-        case AutoBolusCarbsApplicationFactor = "com.loopkit.algorithmExperiments.autoBolusCarbsApplicationFactor"
+        case AutoBolusCarbsThresholdPercentage = "com.loopkit.algorithmExperiments.autoBolusCarbsThresholdPercentage"
+        case AutoBolusCarbsApplicationFactorMin = "com.loopkit.algorithmExperiments.autoBolusCarbsApplicationFactorMin"
+        case AutoBolusCarbsApplicationFactorMax = "com.loopkit.algorithmExperiments.autoBolusCarbsApplicationFactorMax"
         case CarbResponsiveRetrospectiveCorrectionEnabled = "com.loopkit.algorithmExperiments.carbResponsiveRetrospectiveCorrectionEnabled"
         case GlucoseMomentumReductionEnabled = "com.loopkit.algorithmExperiments.glucoseMomentumReductionEnabled"
         case GlucoseMomentumReductionEnabledWhenAsleep = "com.loopkit.algorithmExperiments.glucoseMomentumReductionEnabledWhenAsleep"
@@ -217,16 +223,35 @@ extension UserDefaults {
         }
     }
     
-    var autoBolusCarbsApplicationFactor: Double {
+    var autoBolusCarbsThresholdPercentage: Double {
         get {
-            let result = double(forKey: Key.AutoBolusCarbsApplicationFactor.rawValue) as Double
-            return result != 0.0 ? result : Self.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR
+            let result = double(forKey: Key.AutoBolusCarbsThresholdPercentage.rawValue) as Double
+            return result != 0.0 ? result : Self.DEFAULT_AUTO_BOLUS_CARBS_THRESHOLD_PERCENTAGE
         }
         set {
-            set(newValue, forKey: Key.AutoBolusCarbsApplicationFactor.rawValue)
+            set(newValue, forKey: Key.AutoBolusCarbsThresholdPercentage.rawValue)
         }
     }
     
+    var autoBolusCarbsApplicationFactorMin: Double {
+        get {
+            let result = double(forKey: Key.AutoBolusCarbsApplicationFactorMin.rawValue) as Double
+            return result != 0.0 ? result : Self.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR_MIN
+        }
+        set {
+            set(newValue, forKey: Key.AutoBolusCarbsApplicationFactorMin.rawValue)
+        }
+    }
+    
+    var autoBolusCarbsApplicationFactorMax: Double {
+        get {
+            let result = double(forKey: Key.AutoBolusCarbsApplicationFactorMin.rawValue) as Double
+            return result != 0.0 ? result : Self.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR_MAX
+        }
+        set {
+            set(newValue, forKey: Key.AutoBolusCarbsApplicationFactorMax.rawValue)
+        }
+    }
     
     var carbResponsiveRetrospectiveCorrection: Bool {
         get {
