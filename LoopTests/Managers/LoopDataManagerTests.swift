@@ -116,9 +116,10 @@ class LoopDataManagerTests: XCTestCase {
             RepeatingScheduleValue(startTime: TimeInterval(75600), value: DoubleRange(minValue: 100, maxValue: 110))
         ], timeZone: .utcTimeZone)!
     }
-    
+        
     // MARK: Mock stores
     var now: Date!
+    var carbStore: MockCarbStore!
     var dosingDecisionStore: MockDosingDecisionStore!
     var automaticDosingStatus: AutomaticDosingStatus!
     var loopDataManager: LoopDataManager!
@@ -127,7 +128,17 @@ class LoopDataManagerTests: XCTestCase {
                basalDeliveryState: PumpManagerStatus.BasalDeliveryState? = nil,
                maxBolus: Double = 10,
                maxBasalRate: Double = 5.0,
-               dosingStrategy: AutomaticDosingStrategy = .tempBasalOnly)
+               dosingStrategy: AutomaticDosingStrategy = .tempBasalOnly,
+               predictCarbGlucoseEffects: Bool = false,
+               correctionRanges: GlucoseRangeSchedule? = nil,
+               suspendThresholdValue: Double? = nil,
+               doseHistorySupplier: ((Date) -> [DoseEntry]?)? = nil,
+               // note that carbHistory is independent from carb effects;
+               // one can use dummy replacement carb entry to force recalculation when getting a manual bolus recommendation
+               carbHistorySupplier: ((Date) -> [StoredCarbEntry]?)? = nil,
+               autoBolusCarbs: Bool = false,
+               carbsOnBoardSupplier: ((Date) -> CarbValue)? = nil,
+               carbResponsiveRetrospectiveCorrectionEnabled: Bool = false)
     {
         let basalRateSchedule = loadBasalRateScheduleFixture("basal_profile")
         let insulinSensitivitySchedule = InsulinSensitivitySchedule(
@@ -145,10 +156,13 @@ class LoopDataManagerTests: XCTestCase {
             ],
             timeZone: .utcTimeZone
         )!
+        let glucoseTargets = correctionRanges ?? glucoseTargetRangeSchedule
+        
+        let suspendThreshold = suspendThresholdValue == nil ? suspendThreshold : GlucoseThreshold(unit: .milligramsPerDeciliter, value: suspendThresholdValue!)
 
         let settings = LoopSettings(
             dosingEnabled: false,
-            glucoseTargetRangeSchedule: glucoseTargetRangeSchedule,
+            glucoseTargetRangeSchedule: glucoseTargets,
             insulinSensitivitySchedule: insulinSensitivitySchedule,
             basalRateSchedule: basalRateSchedule,
             carbRatioSchedule: carbRatioSchedule,
@@ -157,18 +171,25 @@ class LoopDataManagerTests: XCTestCase {
             suspendThreshold: suspendThreshold,
             automaticDosingStrategy: dosingStrategy
         )
+
+        let glucoseStore = MockGlucoseStore(for: test)
         
+        let currentDate = glucoseStore.latestGlucose!.startDate
+        now = currentDate
+
         let doseStore = MockDoseStore(for: test)
         doseStore.basalProfile = basalRateSchedule
         doseStore.basalProfileApplyingOverrideHistory = doseStore.basalProfile
         doseStore.sensitivitySchedule = insulinSensitivitySchedule
-        let glucoseStore = MockGlucoseStore(for: test)
-        let carbStore = MockCarbStore(for: test)
+        if let doseHistorySupplier = doseHistorySupplier, let doseHistory = doseHistorySupplier(now) {
+            doseStore.doseHistory = doseHistory
+        }
+        
+        carbStore = MockCarbStore(for: test, predictGlucose: predictCarbGlucoseEffects, carbHistory: carbHistorySupplier?(now))
         carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
         carbStore.carbRatioSchedule = carbRatioSchedule
+        carbStore.carbsOnBoard = carbsOnBoardSupplier?(now)
         
-        let currentDate = glucoseStore.latestGlucose!.startDate
-        now = currentDate
         
         dosingDecisionStore = MockDosingDecisionStore()
         automaticDosingStatus = AutomaticDosingStatus(automaticDosingEnabled: true, isAutomaticDosingAllowed: true)
@@ -184,15 +205,36 @@ class LoopDataManagerTests: XCTestCase {
             carbStore: carbStore,
             dosingDecisionStore: dosingDecisionStore,
             latestStoredSettingsProvider: MockLatestStoredSettingsProvider(),
-            now: { currentDate },
+            now: { glucoseStore.latestGlucose!.startDate },
             pumpInsulinType: .novolog,
             automaticDosingStatus: automaticDosingStatus,
             trustedTimeOffset: { 0 }
         )
+        
+        if autoBolusCarbs {
+            UserDefaults.standard.autoBolusCarbsEnabled = true
+            UserDefaults.standard.autoBolusCarbsActiveByDefault = true
+            UserDefaults.standard.autoBolusCarbsThresholdPercentage = 0.0
+            UserDefaults.standard.autoBolusCarbsApplicationFactorMin = 1.0
+            UserDefaults.standard.autoBolusCarbsApplicationFactorMax = 1.0
+        }
+        if carbResponsiveRetrospectiveCorrectionEnabled {
+            UserDefaults.standard.carbResponsiveRetrospectiveCorrection = true
+        }
     }
     
     override func tearDownWithError() throws {
         loopDataManager = nil
+        tearDown()
+    }
+    
+    override func tearDown() {
+        UserDefaults.standard.autoBolusCarbsEnabled = false
+        UserDefaults.standard.autoBolusCarbsActiveByDefault = false
+        UserDefaults.standard.autoBolusCarbsThresholdPercentage = UserDefaults.DEFAULT_AUTO_BOLUS_CARBS_THRESHOLD_PERCENTAGE
+        UserDefaults.standard.autoBolusCarbsApplicationFactorMin = UserDefaults.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR_MIN
+        UserDefaults.standard.autoBolusCarbsApplicationFactorMax = UserDefaults.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR_MAX
+        UserDefaults.standard.carbResponsiveRetrospectiveCorrection = false
     }
 }
 

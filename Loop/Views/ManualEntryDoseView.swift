@@ -152,7 +152,7 @@ struct ManualEntryDoseView: View {
     private var insulinTypePicker: some View {
         ExpandablePicker(
             with: viewModel.insulinTypePickerOptions,
-            selectedValue: $viewModel.selectedInsulinType,
+            selectedValue: $viewModel.selectedInsulinType,            
             label: NSLocalizedString("Insulin Type", comment: "Insulin type label")
         )
     }

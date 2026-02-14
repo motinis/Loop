@@ -50,6 +50,8 @@ public struct SettingsView: View {
             }
             
             case favoriteFoods
+            case preferences
+            case profiles
         }
     }
     
@@ -83,6 +85,9 @@ public struct SettingsView: View {
                     deviceSettingsSection
                     if FeatureFlags.allowExperimentalFeatures {
                         favoriteFoodsSection
+                    }
+                    if FeatureFlags.allowExperimentalFeatures {
+                        preferencesSection
                     }
                     if (viewModel.pumpManagerSettingsViewModel.isTestingDevice || viewModel.cgmManagerSettingsViewModel.isTestingDevice) && viewModel.showDeleteTestData {
                         deleteDataSection
@@ -138,6 +143,21 @@ public struct SettingsView: View {
                 switch sheet {
                 case .favoriteFoods:
                     FavoriteFoodsView()
+                case .preferences:
+                    PreferencesView(viewModel: PreferencesViewModel(preferencesProvider: Preferences.shared)).environmentObject(displayGlucosePreference)
+                case .profiles:
+                    ProfileView(viewModel: ProfileViewModel(therapySettings: self.viewModel.therapySettings(),
+                                                            sensitivityOverridesEnabled: FeatureFlags.sensitivityOverridesEnabled,
+                                                            adultChildInsulinModelSelectionEnabled: FeatureFlags.adultChildInsulinModelSelectionEnabled,
+                                                            delegate: self.viewModel.therapySettingsViewModelDelegate))
+                    .environmentObject(displayGlucosePreference)
+                    .environment(\.dismissAction, self.dismiss)
+                    .environment(\.appName, self.appName)
+                    .environment(\.chartColorPalette, .primary)
+                    .environment(\.carbTintColor, self.carbTintColor)
+                    .environment(\.glucoseTintColor, self.glucoseTintColor)
+                    .environment(\.guidanceColors, self.guidanceColors)
+                    .environment(\.insulinTintColor, self.insulinTintColor)
                 }
             }
         }
@@ -296,14 +316,18 @@ extension SettingsView {
                             imageView: Image("Therapy Icon"),
                             label: NSLocalizedString("Therapy Settings", comment: "Title text for button to Therapy Settings"),
                             descriptiveText: NSLocalizedString("Diabetes Treatment", comment: "Descriptive text for Therapy Settings"))
-            }
-
-            ForEach(pluginMenuItems.filter {$0.section == .configuration}) { item in
-                item.view
-            }
-
-            if FeatureFlags.allowAlgorithmExperiments {
-                algorithmExperimentsSection
+                LargeButton(action: { sheet = .profiles },
+                            includeArrow: true,
+                            imageView: AnyView(Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 30, weight: .bold))),
+                            label: NSLocalizedString("Profiles", comment: "Title text for button to Profiles"),
+                            descriptiveText: NSLocalizedString("Switch between profiles for different scenarios", comment: "Descriptive text for Profiles"))
+                ForEach(pluginMenuItems.filter {$0.section == .configuration}) { item in
+                    item.view
+                }
+                
+                if FeatureFlags.allowAlgorithmExperiments {
+                    algorithmExperimentsSection
+                }
             }
         }
     }
@@ -377,6 +401,16 @@ extension SettingsView {
         }
     }
     
+    private var preferencesSection: some View {
+        Section {
+            LargeButton(action: { sheet = .preferences },
+                        includeArrow: true,
+                        imageView: AnyView(Image(systemName: "gearshape.fill").font(.system(size: 30, weight: .bold))),
+                        label: NSLocalizedString("Preferences", comment: "Title text for button to Preferences"),
+                        descriptiveText: NSLocalizedString("Customize your Loop experience by adjusting additional settings", comment: "Descriptive text for Preferences"))
+        }
+    }
+
     private var cgmChoices: [ActionSheet.Button] {
         var result = viewModel.cgmManagerSettingsViewModel.availableDevices
             .sorted(by: {$0.localizedTitle < $1.localizedTitle})

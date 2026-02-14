@@ -14,11 +14,13 @@ enum FetchDataWarningDetail {
     case glucoseMomentumEffect(error: Error)
     case insulinEffect(error: Error)
     case insulinEffectIncludingPendingInsulin(error: Error)
+    case negativeInsulinDamper(error: Error)
     case insulinCounteractionEffect(error: Error)
     case carbEffect(error: Error)
     case carbsOnBoard(error: Error)
     case insulinOnBoard(error: Error)
     case retrospectiveGlucoseEffect(error: Error)
+    case crrcCarbEffect(error: Error)
 }
 
 extension FetchDataWarningDetail {
@@ -32,6 +34,8 @@ extension FetchDataWarningDetail {
             return "insulinEffect"
         case .insulinEffectIncludingPendingInsulin:
             return "insulinEffectIncludingPendingInsulin"
+        case .negativeInsulinDamper:
+            return "negativeInsulinDamper"
         case .insulinCounteractionEffect:
             return "insulinCounteractionEffect"
         case .carbEffect:
@@ -42,6 +46,8 @@ extension FetchDataWarningDetail {
             return "insulinOnBoard"
         case .retrospectiveGlucoseEffect:
             return "retrospectiveGlucoseEffect"
+        case .crrcCarbEffect:
+            return "crrcCarbEffect"
         }
     }
 
@@ -53,10 +59,12 @@ extension FetchDataWarningDetail {
              .insulinEffect(let error),
              .insulinEffectIncludingPendingInsulin(let error),
              .insulinCounteractionEffect(let error),
+             .negativeInsulinDamper(let error),
              .carbEffect(let error),
              .carbsOnBoard(let error),
              .insulinOnBoard(let error),
-             .retrospectiveGlucoseEffect(let error):
+             .retrospectiveGlucoseEffect(let error),
+             .crrcCarbEffect(let error):
             details["error"] = StoredDosingDecisionIssue.description(for: error)
         }
         return details

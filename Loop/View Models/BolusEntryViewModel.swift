@@ -37,6 +37,8 @@ protocol BolusEntryViewModelDelegate: AnyObject {
     
     func carbsOnBoard(at date: Date, effectVelocities: [GlucoseEffectVelocity]?, completion: @escaping (_ result: CarbStoreResult<CarbValue>) -> Void)
     
+    func getCarbEntries(start: Date?, end: Date?, completion: @escaping (_ result: CarbStoreResult<[StoredCarbEntry]>) -> Void)
+    
     func insulinActivityDuration(for type: InsulinType?) -> TimeInterval
 
     var mostRecentGlucoseDataDate: Date? { get }
@@ -58,6 +60,8 @@ protocol BolusEntryViewModelDelegate: AnyObject {
 
 @MainActor
 final class BolusEntryViewModel: ObservableObject {
+    private let preferences: PreferencesProvider
+
     enum Alert: Int {
         case recommendationChanged
         case maxBolusExceeded
@@ -92,6 +96,8 @@ final class BolusEntryViewModel: ObservableObject {
             }
         }
     }
+    
+    final let MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY = 0.005
 
     // MARK: - State
 
@@ -113,6 +119,36 @@ final class BolusEntryViewModel: ObservableObject {
     let potentialCarbEntry: NewCarbEntry?
     let selectedCarbAbsorptionTimeEmoji: String?
 
+    @Published var carbBolus: HKQuantity?
+    @Published var carbBolusIncluded = true
+    var carbBolusAmount: Double? {
+        carbBolus?.doubleValue(for: .internationalUnit())
+    }
+    @Published var cobCorrectionBolus: HKQuantity?
+    @Published var cobCorrectionBolusIncluded = true
+    var cobCorrectionBolusAmount: Double? {
+        cobCorrectionBolus?.doubleValue(for: .internationalUnit())
+    }
+    @Published var bgCorrectionBolus: HKQuantity?
+    @Published var bgCorrectionBolusIncluded = true
+    var bgCorrectionBolusAmount: Double? {
+        bgCorrectionBolus?.doubleValue(for: .internationalUnit())
+    }
+    @Published var maxExcessBolus: HKQuantity?
+    @Published var maxExcessBolusIncluded = true
+    var maxExcessBolusAmount: Double? {
+        maxExcessBolus?.doubleValue(for: .internationalUnit())
+    }
+    @Published var safetyLimitBolus: HKQuantity?
+    @Published var safetyLimitBolusIncluded = true
+    var safetyLimitBolusAmount: Double? {
+        safetyLimitBolus?.doubleValue(for: .internationalUnit())
+    }
+    @Published var exclusionsActive: Bool?
+    @Published var exclusionsIncluded = true
+    @Published var exclusionsApplyToCarbEntry: Bool
+    @Published var exclusionsApplyToCobCorrection: Bool
+    @Published var exclusionsApplyToBgCorrection: Bool
     @Published var recommendedBolus: HKQuantity?
     var recommendedBolusAmount: Double? {
         recommendedBolus?.doubleValue(for: .internationalUnit())
@@ -129,6 +165,9 @@ final class BolusEntryViewModel: ObservableObject {
 
     @Published var activeAlert: Alert?
     @Published var activeNotice: Notice?
+    
+    private let potentialDuplicateCarbEntriesSupported: Bool
+    @Published var potentialDuplicateCarbEntries: [StoredCarbEntry] = []
 
     private let log = OSLog(category: "BolusEntryViewModel")
     private var cancellables: Set<AnyCancellable> = []
@@ -171,9 +210,11 @@ final class BolusEntryViewModel: ObservableObject {
         originalCarbEntry: StoredCarbEntry? = nil,
         potentialCarbEntry: NewCarbEntry? = nil,
         selectedCarbAbsorptionTimeEmoji: String? = nil,
-        isManualGlucoseEntryEnabled: Bool = false
+        isManualGlucoseEntryEnabled: Bool = false,
+        preferences: PreferencesProvider = Preferences.shared
     ) {
         self.delegate = delegate
+        self.preferences = preferences
         self.now = now
         self.screenWidth = screenWidth
         self.debounceIntervalMilliseconds = debounceIntervalMilliseconds
@@ -194,6 +235,11 @@ final class BolusEntryViewModel: ObservableObject {
         self.chartDateInterval = DateInterval(start: Date(timeInterval: .hours(-1), since: now()), duration: .hours(7))
         
         self.dosingDecision.originalCarbEntry = originalCarbEntry
+        
+        self.exclusionsApplyToCarbEntry = preferences.isCarbEntryExcluded
+        self.exclusionsApplyToCobCorrection = preferences.isCobCorrectionExcluded
+        self.exclusionsApplyToBgCorrection = preferences.isBgCorrectionExcluded
+        self.potentialDuplicateCarbEntriesSupported = preferences.isDetectMealDuplicatesEnabled
 
         self.updateSettings()
     }
@@ -206,7 +252,7 @@ final class BolusEntryViewModel: ObservableObject {
         self.observeElapsedTime()
         self.observeEnteredManualGlucoseChanges()
         self.observeEnteredBolusChanges()
-
+        self.observeBolusBreakdownChanges()
     }
 
     private func observeLoopUpdates() {
@@ -235,6 +281,63 @@ final class BolusEntryViewModel: ObservableObject {
             .sink { [weak self] _ in
                 self?.delegate?.withLoopState { [weak self] state in
                     self?.updatePredictedGlucoseValues(from: state)
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func observeBolusBreakdownChanges() {
+        $carbBolusIncluded
+            .sink { [weak self] newValue in
+                if self?.carbBolusIncluded != newValue {
+                    self?.delegate?.withLoopState { [weak self] _ in
+                        self?.updateRecommendedBolusAndNoticeForBolusBreakdownChange()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        $cobCorrectionBolusIncluded
+            .sink { [weak self] newValue in
+                if self?.cobCorrectionBolusIncluded != newValue {
+                    self?.delegate?.withLoopState { [weak self] _ in
+                        self?.updateRecommendedBolusAndNoticeForBolusBreakdownChange()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        $bgCorrectionBolusIncluded
+            .sink { [weak self] newValue in
+                if self?.bgCorrectionBolusIncluded != newValue {
+                    self?.delegate?.withLoopState { [weak self] _ in
+                        self?.updateRecommendedBolusAndNoticeForBolusBreakdownChange()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        $maxExcessBolusIncluded
+            .sink { [weak self] newValue in
+                if self?.maxExcessBolusIncluded != newValue {
+                    self?.delegate?.withLoopState { [weak self] _ in
+                        self?.updateRecommendedBolusAndNoticeForBolusBreakdownChange()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        $safetyLimitBolusIncluded
+            .sink { [weak self] newValue in
+                if self?.safetyLimitBolusIncluded != newValue {
+                    self?.delegate?.withLoopState { [weak self] _ in
+                        self?.updateRecommendedBolusAndNoticeForBolusBreakdownChange()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        $exclusionsIncluded
+            .sink { [weak self] newValue in
+                if self?.exclusionsIncluded != newValue {
+                    self?.delegate?.withLoopState { [weak self] _ in
+                        self?.updateRecommendedBolusAndNoticeForBolusBreakdownChange()
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -444,6 +547,13 @@ final class BolusEntryViewModel: ObservableObject {
         formatter.numberFormatter.roundingMode = .down
         return formatter.numberFormatter
     }()
+    
+    private lazy var breakdownBolusAmountFormatter: NumberFormatter = {
+        let formatter = QuantityFormatter(for: .internationalUnit())
+        formatter.numberFormatter.roundingMode = .down // round towards 0
+        formatter.numberFormatter.maximumFractionDigits = 2
+        return formatter.numberFormatter
+    }()
 
     private lazy var absorptionTimeFormatter: DateComponentsFormatter = {
         let formatter = DateComponentsFormatter()
@@ -626,7 +736,43 @@ final class BolusEntryViewModel: ObservableObject {
                 self?.updateCarbsOnBoard(from: state)
                 self?.updateRecommendedBolusAndNotice(from: state, isUpdatingFromUserInput: false)
                 self?.updatePredictedGlucoseValues(from: state)
+                self?.updatePotentialDuplicateCarbEntries(from: state)
                 continuation.resume()
+            }
+        }
+    }
+    
+    private func hasDefaultFoodEmoji(_ foodType: String?) -> Bool {
+        foodType != FoodEmojiShortcut.other.emoji && FoodEmojiShortcut.all.map{$0.emoji}.contains(foodType)
+    }
+    
+    private func updatePotentialDuplicateCarbEntries(from state: LoopState) {
+        
+        guard let potentialCarbEntry = potentialCarbEntry, potentialDuplicateCarbEntriesSupported else {
+            return
+        }
+        
+        delegate?.getCarbEntries(start: potentialCarbEntry.startDate.addingTimeInterval(.minutes(-15)), end: potentialCarbEntry.startDate) { result in
+            DispatchQueue.main.async {
+                self.potentialDuplicateCarbEntries = []
+                
+                switch result {
+                case .success(let carbEntries):
+                    for carbEntry in carbEntries {
+                        guard carbEntry != self.originalCarbEntry else {
+                            continue
+                        }
+                        guard carbEntry.absorptionTime == potentialCarbEntry.absorptionTime, carbEntry.quantity == potentialCarbEntry.quantity else {
+                            continue
+                        }
+                        guard carbEntry.foodType == potentialCarbEntry.foodType || self.hasDefaultFoodEmoji(carbEntry.foodType) || self.hasDefaultFoodEmoji(potentialCarbEntry.foodType) else {
+                            continue
+                        }
+                        self.potentialDuplicateCarbEntries.append(carbEntry)
+                    }
+                case .failure:
+                    break
+                }
             }
         }
     }
@@ -645,8 +791,16 @@ final class BolusEntryViewModel: ObservableObject {
             }
         }
     }
-
+    
     private func updateRecommendedBolusAndNotice(from state: LoopState, isUpdatingFromUserInput: Bool) {
+        updateRecommendedBolusAndNotice(recommendationSupplier: {try computeBolusRecommendation(from: state)}, isUpdatingFromUserInput: isUpdatingFromUserInput)
+    }
+    
+    private func updateRecommendedBolusAndNoticeForBolusBreakdownChange() {
+        updateRecommendedBolusAndNotice(recommendationSupplier: {self.dosingDecision.manualBolusRecommendation?.recommendation}, isUpdatingFromUserInput: true)
+    }
+        
+    private func updateRecommendedBolusAndNotice(recommendationSupplier: () throws -> ManualBolusRecommendation?, isUpdatingFromUserInput: Bool) {
         dispatchPrecondition(condition: .notOnQueue(.main))
 
         guard let delegate = delegate else {
@@ -656,14 +810,100 @@ final class BolusEntryViewModel: ObservableObject {
 
         let now = Date()
         var recommendation: ManualBolusRecommendation?
+        let carbBolus: HKQuantity?
+        let cobCorrectionBolus: HKQuantity?
+        let bgCorrectionBolus: HKQuantity?
         let recommendedBolus: HKQuantity?
+        var maxExcessBolus: HKQuantity? = nil
+        var safetyLimitBolus: HKQuantity? = nil
+        var exclusionsActive: Bool? = nil
         let notice: Notice?
         do {
-            recommendation = try computeBolusRecommendation(from: state)
-
+            recommendation = try recommendationSupplier()
+            
             if let recommendation = recommendation {
-                recommendedBolus = HKQuantity(unit: .internationalUnit(), doubleValue: delegate.roundBolusVolume(units: recommendation.amount))
-                //recommendedBolus = HKQuantity(unit: .internationalUnit(), doubleValue: recommendation.amount)
+                var totalRecommendation = 0.0
+                                
+                let breakdown = recommendation.bolusBreakdown
+                
+                if potentialCarbEntry != nil,
+                   exclusionsApplyToCarbEntry || exclusionsApplyToCobCorrection || exclusionsApplyToBgCorrection
+                {
+                    var exclusionsAmount = -(recommendation.missingAmount ?? 0.0)
+
+                    if exclusionsApplyToCarbEntry {
+                        exclusionsAmount += breakdown?.carbsAmount ?? 0.0
+                    }
+                    if exclusionsApplyToCobCorrection {
+                        exclusionsAmount += breakdown?.cobCorrectionAmount ?? 0.0
+                    }
+                    if exclusionsApplyToBgCorrection {
+                        exclusionsAmount += breakdown?.bgCorrectionAmount ?? 0.0
+                    }
+
+                    if exclusionsAmount > 0 {
+                        exclusionsActive = true
+                        totalRecommendation -= exclusionsIncluded ? exclusionsAmount : 0
+                    } else {
+                        exclusionsActive = false
+                    }
+                }
+                
+                let useExclusions = exclusionsIncluded && (exclusionsActive ?? false)
+                
+                if let carbsAmount = breakdown?.carbsAmount, abs(carbsAmount) >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY{
+                    carbBolus = HKQuantity(unit: .internationalUnit(), doubleValue: carbsAmount)
+                    totalRecommendation += carbBolusIncluded || (useExclusions && exclusionsApplyToCarbEntry) ?  carbsAmount : 0
+                } else {
+                    carbBolus = nil
+                }
+
+                if let cobCorrectionAmount = breakdown?.cobCorrectionAmount, abs(cobCorrectionAmount) >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY {
+                    cobCorrectionBolus = HKQuantity(unit: .internationalUnit(), doubleValue: cobCorrectionAmount)
+                    totalRecommendation += cobCorrectionBolusIncluded || (useExclusions && exclusionsApplyToCobCorrection) ?  cobCorrectionAmount : 0
+                } else {
+                    cobCorrectionBolus = nil
+                }
+                
+                if let bgCorrectionAmount = breakdown?.bgCorrectionAmount, abs(bgCorrectionAmount) >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY {
+                    bgCorrectionBolus = HKQuantity(unit: .internationalUnit(), doubleValue: bgCorrectionAmount)
+                    totalRecommendation += bgCorrectionBolusIncluded || (useExclusions && exclusionsApplyToBgCorrection) ?  bgCorrectionAmount : 0
+                } else {
+                    bgCorrectionBolus = nil
+                }
+                
+                if let missingAmount = recommendation.missingAmount, missingAmount >= MIN_ABS_BOLUS_AMOUNT_FOR_DISPLAY {
+                    if let maxBolus = maximumBolus?.doubleValue(for: .internationalUnit()) {
+                        if recommendation.amount >= maxBolus {
+                            // while it is technically possible for some safetyLimitBolus too, this isn't identifiable, nor parituclarly relevant
+                            maxExcessBolus = HKQuantity(unit: .internationalUnit(), doubleValue: missingAmount)
+                        } else if recommendation.amount + missingAmount > maxBolus {
+                            safetyLimitBolus = HKQuantity(unit: .internationalUnit(), doubleValue: maxBolus - recommendation.amount)
+                            maxExcessBolus = HKQuantity(unit: .internationalUnit(), doubleValue: recommendation.amount + missingAmount - maxBolus)
+                        } else {
+                            safetyLimitBolus = HKQuantity(unit: .internationalUnit(), doubleValue: missingAmount)
+                        }
+                    } else {
+                        // generally we shouldn't be here, but if we don't know maxBolus we have to treat it all as safety limit
+                        safetyLimitBolus = HKQuantity(unit: .internationalUnit(), doubleValue: missingAmount)
+                    }
+                    
+                    if let maxExcessAmount = maxExcessBolus?.doubleValue(for: .internationalUnit()) {
+                        totalRecommendation -= maxExcessBolusIncluded || useExclusions ? maxExcessAmount : 0
+                    }
+
+                    if let safetyLimitAmount = safetyLimitBolus?.doubleValue(for: .internationalUnit()) {
+                        totalRecommendation -= safetyLimitBolusIncluded || useExclusions ? safetyLimitAmount : 0
+                    }
+                }
+                
+                if carbBolusIncluded, cobCorrectionBolusIncluded, bgCorrectionBolusIncluded, maxExcessBolusIncluded, safetyLimitBolusIncluded, !useExclusions {
+                    totalRecommendation = recommendation.amount // avoid possible rounding issues
+                } else {
+                    totalRecommendation = round(1000 * totalRecommendation) / 1000
+                }
+                
+                recommendedBolus = HKQuantity(unit: .internationalUnit(), doubleValue: delegate.roundBolusVolume(units: max(0, totalRecommendation)))
                 
                 switch recommendation.notice {
                 case .glucoseBelowSuspendThreshold:
@@ -680,10 +920,22 @@ final class BolusEntryViewModel: ObservableObject {
                     notice = nil
                 }
             } else {
+                carbBolus = nil
+                cobCorrectionBolus = nil
+                bgCorrectionBolus = nil
+                maxExcessBolus = nil
+                safetyLimitBolus = nil
+                exclusionsActive = nil
                 recommendedBolus = HKQuantity(unit: .internationalUnit(), doubleValue: 0)
                 notice = nil
             }
         } catch {
+            carbBolus = nil
+            cobCorrectionBolus = nil
+            bgCorrectionBolus = nil
+            maxExcessBolus = nil
+            safetyLimitBolus = nil
+            exclusionsActive = nil
             recommendedBolus = nil
 
             switch error {
@@ -700,10 +952,16 @@ final class BolusEntryViewModel: ObservableObject {
 
         DispatchQueue.main.async {
             let priorRecommendedBolus = self.recommendedBolus
+            self.carbBolus = carbBolus
+            self.cobCorrectionBolus = cobCorrectionBolus
+            self.bgCorrectionBolus = bgCorrectionBolus
+            self.maxExcessBolus = maxExcessBolus
+            self.safetyLimitBolus = safetyLimitBolus
+            self.exclusionsActive = exclusionsActive
             self.recommendedBolus = recommendedBolus
             self.dosingDecision.manualBolusRecommendation = recommendation.map { ManualBolusRecommendationWithDate(recommendation: $0, date: now) }
             self.activeNotice = notice
-
+            
             if priorRecommendedBolus != nil,
                priorRecommendedBolus != recommendedBolus,
                !self.enacting,
@@ -729,7 +987,7 @@ final class BolusEntryViewModel: ObservableObject {
             return try state.recommendBolus(
                 consideringPotentialCarbEntry: potentialCarbEntry,
                 replacingCarbEntry: originalCarbEntry,
-                considerPositiveVelocityAndRC: FeatureFlags.usePositiveMomentumAndRCForManualBoluses
+                considerPositiveVelocityAndRC: FeatureFlags.usePositiveMomentumAndRCForManualBoluses               
             )
         }
     }
@@ -789,15 +1047,43 @@ final class BolusEntryViewModel: ObservableObject {
         chartDateInterval = DateInterval(start: chartStartDate, duration: .hours(totalHours))
     }
 
-    func formatBolusAmount(_ bolusAmount: Double) -> String {
-        bolusAmountFormatter.string(from: bolusAmount) ?? String(bolusAmount)
+    func formatBolusAmount(_ bolusAmount: Double, forBreakdown: Bool = false) -> String {
+        let formatter = forBreakdown ? breakdownBolusAmountFormatter : bolusAmountFormatter
+        return formatter.string(from: bolusAmount) ?? String(bolusAmount)
     }
 
+    var carbBolusString: String {
+        return bolusString(carbBolusAmount, forBreakdown: true)
+    }
+    var cobCorrectionBolusString: String {
+        return bolusString(cobCorrectionBolusAmount, forBreakdown: true)
+    }
+    var bgCorrectionBolusString: String {
+        return bolusString(bgCorrectionBolusAmount, forBreakdown: true)
+    }
+    var negativeMaxExcessBolusString: String {
+        negativeBolusString(amount: maxExcessBolusAmount)
+    }
+    var negativeSafetyLimitString: String {
+        negativeBolusString(amount: safetyLimitBolusAmount)
+    }
+    
+    func negativeBolusString(amount: Double?) -> String {
+        guard amount != nil else {
+            return bolusString(nil, forBreakdown: true)
+        }
+        return bolusString(-amount!, forBreakdown: true)
+    }
+    
     var recommendedBolusString: String {
-        guard let amount = recommendedBolusAmount else {
+        return bolusString(recommendedBolusAmount, forBreakdown: false)
+    }
+    
+    func bolusString(_ bolusAmount: Double?, forBreakdown: Bool) -> String {
+        guard let amount = bolusAmount else {
             return "–"
         }
-        return formatBolusAmount(amount)
+        return formatBolusAmount(amount, forBreakdown: forBreakdown)
     }
 
     func updateEnteredBolus(_ enteredBolusString: String) {
@@ -815,12 +1101,12 @@ extension BolusEntryViewModel.Alert: Identifiable {
 
 // MARK: Helpers
 extension BolusEntryViewModel {
-    
+
     var isGlucoseDataStale: Bool {
         guard let latestGlucoseDataDate = delegate?.mostRecentGlucoseDataDate else { return true }
         return now().timeIntervalSince(latestGlucoseDataDate) > LoopCoreConstants.inputDataRecencyInterval
     }
-    
+
     var isPumpDataStale: Bool {
         guard let latestPumpDataDate = delegate?.mostRecentPumpDataDate else { return true }
         return now().timeIntervalSince(latestPumpDataDate) > LoopCoreConstants.inputDataRecencyInterval
@@ -829,7 +1115,7 @@ extension BolusEntryViewModel {
     var isManualGlucosePromptVisible: Bool {
         activeNotice == .staleGlucoseData && !isManualGlucoseEntryEnabled
     }
-    
+
     var isNoticeVisible: Bool {
         if activeNotice == nil {
             return false
@@ -839,7 +1125,7 @@ extension BolusEntryViewModel {
             return !isManualGlucoseEntryEnabled
         }
     }
-    
+
     private var hasBolusEntryReadyToDeliver: Bool {
         enteredBolus.doubleValue(for: .internationalUnit()) != 0
     }
@@ -854,14 +1140,14 @@ extension BolusEntryViewModel {
         if hasBolusEntryReadyToDeliver { return .actionButton }
         return .manualGlucoseEntry
     }
-    
+
     enum ActionButtonAction {
         case saveWithoutBolusing
         case saveAndDeliver
         case enterBolus
         case deliver
     }
-    
+
     var actionButtonAction: ActionButtonAction {
         switch (hasDataToSave, hasBolusEntryReadyToDeliver) {
         case (true, true): return .saveAndDeliver
@@ -871,3 +1157,4 @@ extension BolusEntryViewModel {
         }
     }
 }
+

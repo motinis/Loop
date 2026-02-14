@@ -22,6 +22,23 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
     @State private var showHowAbsorptionTimeWorks = false
     @State private var showAddFavoriteFood = false
     
+    
+    private let absorptionFormatter: DateComponentsFormatter = {
+        let formatter = DateComponentsFormatter()
+        formatter.collapsesLargestUnit = true
+        formatter.unitsStyle = .abbreviated
+        formatter.allowsFractionalUnits = true
+        formatter.allowedUnits = [.hour, .minute]
+        return formatter
+    }()
+    
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter
+    }()
+    
     private let isNewEntry: Bool
 
     init(viewModel: CarbEntryViewModel) {
@@ -95,12 +112,87 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
         }
     }
     
+    
+    @State private var carbsOnBoardingSoonExpanded = false
+    
+    private func carbsOnBoardingSoonRow(_ carbEntries: [StoredCarbEntry], _ unit: HKUnit, _ value: Double) -> some View {
+        VStack {
+            HStack(spacing: 2) {
+                Text(NSLocalizedString("Consuming Soon", comment: "Label for consuming soon row on carb entry screen"))
+                    .foregroundColor(.primary)
+                Text(" ")
+                Image(systemName: "chevron.forward.circle")
+                    .imageScale(.small)
+                    .foregroundColor(.accentColor)
+                    .rotationEffect(.degrees(carbsOnBoardingSoonExpanded ? 90 : 0))
+                Spacer()
+                Text(CarbQuantityRow.numberFormatter.string(from: value)!)
+                    .foregroundColor(.secondary)
+                Text(QuantityFormatter(for: unit).localizedUnitStringWithPlurality())
+                    .foregroundColor(Color(.secondaryLabel))
+            }
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+            .onTapGesture {
+                carbsOnBoardingSoonExpanded.toggle()
+            }
+            
+            if carbsOnBoardingSoonExpanded {
+                Spacer()                
+                LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 10) {
+                    ForEach(0..<carbEntries.count, id: \.self) { index in
+                        let displayIndex = ((index % 2) * carbEntries.count + index) / 2
+                        carbEntryOnboardingSoonTile(carbEntries[displayIndex], unit, index % 2 != 0)
+                    }
+                    if carbEntries.count % 2 != 0 {
+                        HStack {
+                            Divider()
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                .foregroundColor(.secondary)
+                .font(.subheadline)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+    
+    private func carbEntryOnboardingSoonTile(_ carbEntry: StoredCarbEntry, _ unit:HKUnit, _ showDivider: Bool) -> some View {
+        HStack {
+            if showDivider {
+                Divider()
+            }
+            Text("  ")
+            VStack(alignment: .leading){
+                Text(timeFormatter.string(from: carbEntry.startDate))
+                Text(String(
+                        format: NSLocalizedString("+ %1$@", comment: "Formats (1: carb absorption duration)"),
+                        absorptionFormatter.string(from: carbEntry.absorptionTime!)!))
+                    .font(.caption)
+            }
+            Spacer()
+            Text(String(
+                    format: NSLocalizedString("%1$@ %2$@ %3$@", comment: "Formats (1: food type, 2: carbs, 3: unit)"),
+                    carbEntry.foodType ?? "",
+                    CarbQuantityRow.numberFormatter.string(from: carbEntry.quantity.doubleValue(for: unit))!,
+                    QuantityFormatter(for: unit).localizedUnitStringWithPlurality()))
+        }
+    }
+    
     private var mainCard: some View {
         VStack(spacing: 10) {
             let amountConsumedFocused: Binding<Bool> = Binding(get: { expandedRow == .amountConsumed }, set: { expandedRow = $0 ? .amountConsumed : nil })
             let timeFocused: Binding<Bool> = Binding(get: { expandedRow == .time }, set: { expandedRow = $0 ? .time : nil })
             let foodTypeFocused: Binding<Bool> = Binding(get: { expandedRow == .foodType }, set: { expandedRow = $0 ? .foodType : nil })
             let absorptionTimeFocused: Binding<Bool> = Binding(get: { expandedRow == .absorptionTime }, set: { expandedRow = $0 ? .absorptionTime : nil })
+            
+            if let carbGramsOnBoardingSoon = viewModel.carbGramsOnBoardingSoon, carbGramsOnBoardingSoon >= 0.5 {
+                let unit = viewModel.preferredCarbUnit
+                let value = HKQuantity(unit: .gram(), doubleValue: carbGramsOnBoardingSoon).doubleValue(for: unit)
+                carbsOnBoardingSoonRow(viewModel.carbEntriesOnBoardingSoon, unit, value)
+                CardSectionDivider()
+            }
             
             CarbQuantityRow(quantity: $viewModel.carbsQuantity, isFocused: amountConsumedFocused, title: NSLocalizedString("Amount Consumed", comment: "Label for carb quantity entry row on carb entry screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
 
@@ -122,7 +214,7 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
         .background(CardBackground())
         .padding(.horizontal)
     }
-    
+        
     @ViewBuilder
     private var bolusView: some View {
         if let viewModel = viewModel.bolusViewModel {

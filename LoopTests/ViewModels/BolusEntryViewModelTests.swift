@@ -699,17 +699,31 @@ class BolusEntryViewModelTests: XCTestCase {
         XCTAssertNil(bolusEntryViewModel.carbEntryDateAndAbsorptionTimeString)
     }
     
+    func is24Hour() -> Bool {
+        let dateFormat = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: Locale.current)!
+
+        return dateFormat.firstIndex(of: "a") == nil
+    }
+    
     func testCarbEntryDateAndAbsorptionTimeString() async throws {
         await setUpViewModel(originalCarbEntry: mockOriginalCarbEntry, potentialCarbEntry: mockPotentialCarbEntry)
 
-        XCTAssertEqual("12:00 PM + 0m", bolusEntryViewModel.carbEntryDateAndAbsorptionTimeString)
+        if is24Hour() {
+            XCTAssertEqual("12:00 + 0m", bolusEntryViewModel.carbEntryDateAndAbsorptionTimeString)
+        } else {
+            XCTAssertEqual("12:00 PM + 0m", bolusEntryViewModel.carbEntryDateAndAbsorptionTimeString)
+        }
     }
     
     func testCarbEntryDateAndAbsorptionTimeString2() async throws {
         let potentialCarbEntry = NewCarbEntry(quantity: BolusEntryViewModelTests.exampleCarbQuantity, startDate: Self.exampleStartDate, foodType: nil, absorptionTime: nil)
         await setUpViewModel(originalCarbEntry: mockOriginalCarbEntry, potentialCarbEntry: potentialCarbEntry)
 
-        XCTAssertEqual("12:00 PM", bolusEntryViewModel.carbEntryDateAndAbsorptionTimeString)
+        if is24Hour() {
+            XCTAssertEqual("12:00", bolusEntryViewModel.carbEntryDateAndAbsorptionTimeString)
+        } else {
+            XCTAssertEqual("12:00 PM", bolusEntryViewModel.carbEntryDateAndAbsorptionTimeString)
+        }
     }
 
     func testIsManualGlucosePromptVisible() throws {
@@ -803,7 +817,6 @@ class BolusEntryViewModelTests: XCTestCase {
 // MARK: utilities
 
 fileprivate class MockLoopState: LoopState {
-    
     var carbsOnBoard: CarbValue?
     
     var insulinOnBoard: InsulinValue?
@@ -821,6 +834,9 @@ fileprivate class MockLoopState: LoopState {
     var retrospectiveGlucoseDiscrepancies: [GlucoseChange]?
     
     var totalRetrospectiveCorrection: HKQuantity?
+    
+    var negativeInsulinDamper: Double?
+    var glucoseMomentumReductionAdjustment: HKQuantity?
     
     var predictGlucoseValueResult: [PredictedGlucoseValue] = []
     func predictGlucose(using inputs: PredictionInputEffect, potentialBolus: DoseEntry?, potentialCarbEntry: NewCarbEntry?, replacingCarbEntry replacedCarbEntry: StoredCarbEntry?, includingPendingInsulin: Bool, considerPositiveVelocityAndRC: Bool) throws -> [PredictedGlucoseValue] {
@@ -855,7 +871,7 @@ public enum BolusEntryViewTestError: Error {
 }
 
 fileprivate class MockBolusEntryViewModelDelegate: BolusEntryViewModelDelegate {
-
+    
     fileprivate var loopState = MockLoopState()
 
     private let dataAccessQueue = DispatchQueue(label: "com.loopKit.tests.dataAccessQueue", qos: .utility)
@@ -936,6 +952,11 @@ fileprivate class MockBolusEntryViewModelDelegate: BolusEntryViewModelDelegate {
             completion(carbsOnBoardResult)
         }
     }
+    
+    func getCarbEntries(start: Date?, end: Date?, completion: @escaping (LoopKit.CarbStoreResult<[LoopKit.StoredCarbEntry]>) -> Void) {
+        completion(.failure(.notConfigured))
+    }
+
     
     var ensureCurrentPumpDataCompletion: ((Date?) -> Void)?
     func ensureCurrentPumpData(completion: @escaping (Date?) -> Void) {

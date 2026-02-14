@@ -28,6 +28,8 @@ protocol CarbStoreProtocol: AnyObject {
     
     var delta: TimeInterval { get }
     
+    var delay: TimeInterval { get }
+    
     var defaultAbsorptionTimes: CarbStore.DefaultAbsorptionTimes { get }
     
     // MARK: Data Management
@@ -42,9 +44,11 @@ protocol CarbStoreProtocol: AnyObject {
     // MARK: COB & Effect Generation
     func getGlucoseEffects(start: Date, end: Date?, effectVelocities: [GlucoseEffectVelocity], completion: @escaping(_ result: CarbStoreResult<(entries: [StoredCarbEntry], effects: [GlucoseEffect])>) -> Void)
     
-    func glucoseEffects<Sample: CarbEntry>(of samples: [Sample], startingAt start: Date, endingAt end: Date?, effectVelocities: [GlucoseEffectVelocity]) throws -> [GlucoseEffect]
+    func glucoseEffects<Sample: CarbEntry>(of: [Sample], startingAt: Date, endingAt: Date?, effectVelocities: [GlucoseEffectVelocity]) throws -> [GlucoseEffect]
     
     func getCarbsOnBoardValues(start: Date, end: Date?, effectVelocities: [GlucoseEffectVelocity]?, completion: @escaping (_ result: CarbStoreResult<[CarbValue]>) -> Void)
+    
+    func carbsOnBoard<Sample: CarbEntry>(of: [Sample], at: Date, effectVelocities: [GlucoseEffectVelocity]?) throws -> CarbValue
     
     func carbsOnBoard(at date: Date, effectVelocities: [GlucoseEffectVelocity]?, completion: @escaping (_ result: CarbStoreResult<CarbValue>) -> Void)
     

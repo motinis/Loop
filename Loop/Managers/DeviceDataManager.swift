@@ -215,7 +215,7 @@ final class DeviceDataManager {
 
     var analyticsServicesManager: AnalyticsServicesManager
 
-    var settingsManager: SettingsManager
+    let settingsManager: SettingsManager
 
     var remoteDataServicesManager: RemoteDataServicesManager { return servicesManager.remoteDataServicesManager }
 
@@ -250,7 +250,8 @@ final class DeviceDataManager {
          cacheStore: PersistenceController,
          localCacheDuration: TimeInterval,
          overrideHistory: TemporaryScheduleOverrideHistory,
-         trustedTimeChecker: TrustedTimeChecker)
+         trustedTimeChecker: TrustedTimeChecker,
+         preferences: PreferencesProvider = Preferences.shared)
     {
 
         let fileManager = FileManager.default
@@ -296,11 +297,13 @@ final class DeviceDataManager {
             provenanceIdentifier: HKSource.default().bundleIdentifier
         )
 
+        let insulinModelOverride = { DeviceDataManager.insulinModelOverride(type: $0, preferences: preferences)}
         let insulinModelProvider: InsulinModelProvider
+                
         if FeatureFlags.adultChildInsulinModelSelectionEnabled {
-            insulinModelProvider = PresetInsulinModelProvider(defaultRapidActingModel: settingsManager.latestSettings.defaultRapidActingModel?.presetForRapidActingInsulin)
+            insulinModelProvider = OverridingInsulinModelProvider(PresetInsulinModelProvider(defaultRapidActingModel: settingsManager.latestSettings.defaultRapidActingModel?.presetForRapidActingInsulin), insulinModelOverride)
         } else {
-            insulinModelProvider = PresetInsulinModelProvider(defaultRapidActingModel: nil)
+            insulinModelProvider = OverridingInsulinModelProvider(PresetInsulinModelProvider(defaultRapidActingModel: nil), insulinModelOverride)
         }
 
         self.analyticsServicesManager = analyticsServicesManager
@@ -317,9 +320,10 @@ final class DeviceDataManager {
             cacheStore: cacheStore,
             cacheLength: localCacheDuration,
             insulinModelProvider: insulinModelProvider,
-            longestEffectDuration: ExponentialInsulinModelPreset.rapidActingAdult.effectDuration,
+            longestEffectDuration: ExponentialInsulinModelPreset.rapidActingAdult.model.maxPossibleEffectDuration,
             basalProfile: settingsManager.latestSettings.basalRateSchedule,
             insulinSensitivitySchedule: sensitivitySchedule,
+            sleepScheduleProvider: { settingsManager.latestSettings.sleepSchedule },
             overrideHistory: overrideHistory,
             lastPumpEventsReconciliation: nil, // PumpManager is nil at this point. Will update this via addPumpEvents below
             provenanceIdentifier: HKSource.default().bundleIdentifier
@@ -473,6 +477,49 @@ final class DeviceDataManager {
                 }
             }
         }
+    }
+    
+    fileprivate static func insulinModel(_ actionDurationMinutes: Double, _ peakMinutes: Double, _ delayMinutes: Double) -> ExponentialInsulinModel {
+        ExponentialInsulinModel(actionDuration: .minutes(actionDurationMinutes), peakActivityTime: .minutes(peakMinutes), delay: .minutes(delayMinutes))
+    }
+    
+    fileprivate static let childNovologModel = insulinModel(360, 44.2, 9.3)
+    fileprivate static let childFiaspModel = insulinModel(360, 44.2, 3.3)
+    fileprivate static let childHumalogModel = insulinModel(335, 36.7, 11.9)
+    fileprivate static let childLyumjevModel = insulinModel(280, 31.6, 3.1)
+    fileprivate static let fastLyumjevModel = insulinModel(300, 62, 5)
+    fileprivate static let rapidActingChildModel = ExponentialInsulinModelPreset.rapidActingChild.model
+    
+    private static func insulinModelOverride(type: InsulinType?, preferences: PreferencesProvider) -> InsulinModel? {
+        let defaultChildModel = preferences.useRapidActingChildInsulinModel ? rapidActingChildModel : nil
+        
+        switch type {
+        case .afrezza: break
+        case .fiasp:
+            if preferences.useNewChildInsulinModel {
+                return childFiaspModel
+            }
+            break
+        case .lyumjev:
+            if preferences.useNewChildInsulinModel {
+                return childLyumjevModel
+            } else if preferences.useFastLyumjevInsulinModel {
+                return fastLyumjevModel
+            }
+        case .novolog:
+            if preferences.useNewChildInsulinModel {
+                return childNovologModel
+            }
+            return defaultChildModel
+        case .humalog:
+            if preferences.useNewChildInsulinModel {
+                return childHumalogModel
+            }
+            return defaultChildModel
+        default:
+            return defaultChildModel
+        }
+        return nil
     }
 
     var availablePumpManagers: [PumpManagerDescriptor] {
@@ -1634,6 +1681,10 @@ extension DeviceDataManager: TherapySettingsViewModelDelegate {
                 completion(.success(deliveryLimits))
             }
         }
+    }
+    
+    func updateCurrentProfileName() {
+        loopManager.updateCurrentProfileName()
     }
     
     func saveCompletion(therapySettings: TherapySettings) {

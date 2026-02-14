@@ -42,9 +42,9 @@ final class StatusTableViewController: LoopChartsTableViewController {
     var alertMuter: AlertMuter!
 
     var supportManager: SupportManager!
-
+    
     lazy private var cancellables = Set<AnyCancellable>()
-
+    
     override func viewDidLoad() {
 
         super.viewDidLoad()
@@ -114,6 +114,13 @@ final class StatusTableViewController: LoopChartsTableViewController {
                 DispatchQueue.main.async {
                     self?.refreshContext.update(with: .insulin)
                     self?.reloadData(animated: true)
+                }
+            },
+            
+            notificationCenter.addObserver(forName: .AlgorithmExperimentsChanged, object: UserDefaults.standard, queue: nil) { [weak self] (notification: Notification) in
+                DispatchQueue.main.async {
+                    self?.refreshContext.update(with: .status)
+                    self?.reloadData()
                 }
             },
         ]
@@ -365,7 +372,7 @@ final class StatusTableViewController: LoopChartsTableViewController {
         let availableWidth = (refreshContext.newSize ?? tableView.bounds.size).width - charts.fixedHorizontalMargin
 
         let totalHours = floor(Double(availableWidth / LoopConstants.minimumChartWidthPerHour))
-        let futureHours = ceil(deviceManager.doseStore.longestEffectDuration.hours)
+        let futureHours = ceil(deviceManager.loopManager.effectDuration(at: Date()))
         let historyHours = max(LoopConstants.statusChartMinimumHistoryDisplay.hours, totalHours - futureHours)
 
         let date = Date(timeIntervalSinceNow: -TimeInterval(hours: historyHours))
@@ -612,6 +619,8 @@ final class StatusTableViewController: LoopChartsTableViewController {
             } else {
                 self.currentCOBDescription = nil
             }
+            
+            self.currentAutoBolusCarbsActive = self.deviceManager.loopManager.autoBolusCarbsEnabledAndActive
 
             self.tableView.beginUpdates()
             if let hudView = self.hudView {
@@ -688,6 +697,8 @@ final class StatusTableViewController: LoopChartsTableViewController {
     // MARK: COB
 
     private var currentCOBDescription: String?
+    
+    private var currentAutoBolusCarbsActive = false
 
     // MARK: - Loop Status Section Data
 
@@ -998,7 +1009,8 @@ final class StatusTableViewController: LoopChartsTableViewController {
                 cell.setChartGenerator(generator: { [weak self] (frame) in
                     return self?.statusCharts.glucoseChart(withFrame: frame)?.view
                 })
-                cell.setTitleLabelText(label: NSLocalizedString("Glucose", comment: "The title of the glucose and prediction graph"))
+                cell.setTitleLabelText(label:  NSLocalizedString("Glucose", comment: "The title of the glucose and prediction graph"))
+
                 cell.doesNavigate = automaticDosingStatus.automaticDosingEnabled || !FeatureFlags.simpleBolusCalculatorEnabled
             case .iob:
                 cell.setChartGenerator(generator: { [weak self] (frame) in
@@ -1014,7 +1026,14 @@ final class StatusTableViewController: LoopChartsTableViewController {
                 cell.setChartGenerator(generator: { [weak self] (frame) in
                     return self?.statusCharts.cobChart(withFrame: frame)?.view
                 })
-                cell.setTitleLabelText(label: NSLocalizedString("Active Carbohydrates", comment: "The title of the Carbs On-Board graph"))
+                
+                let label = NSLocalizedString("Active Carbohydrates", comment: "The title of the Carbs On-Board graph")
+                                
+                if currentAutoBolusCarbsActive {
+                    cell.setTitleLabelText(label: String(format: "%@ %@", label, "🔸"))
+                } else {
+                    cell.setTitleLabelText(label: label)
+                }
             }
 
             self.tableView(tableView, updateSubtitleFor: cell, at: indexPath)
@@ -1153,6 +1172,7 @@ final class StatusTableViewController: LoopChartsTableViewController {
                 } else {
                     cell.setSubtitleLabel(label: nil)
                 }
+                
                 cell.doesNavigate = automaticDosingStatus.automaticDosingEnabled || !FeatureFlags.simpleBolusCalculatorEnabled
             case .iob:
                 if let currentIOB = currentIOBDescription {
@@ -1175,6 +1195,14 @@ final class StatusTableViewController: LoopChartsTableViewController {
                     cell.setSubtitleLabel(label: currentCOB)
                 } else {
                     cell.setSubtitleLabel(label: nil)
+                }
+                
+                let label = NSLocalizedString("Active Carbohydrates", comment: "The title of the Carbs On-Board graph");
+                
+                if currentAutoBolusCarbsActive {
+                    cell.setTitleLabelText(label: String(format: "%@ %@", label, "🔸"))
+                } else {
+                    cell.setTitleLabelText(label: label)
                 }
             }
         case .hud, .status, .alertWarning:
@@ -1244,7 +1272,7 @@ final class StatusTableViewController: LoopChartsTableViewController {
                     case .preMeal, .legacyWorkout:
                         break
                     default:
-                        let vc = AddEditOverrideTableViewController(glucoseUnit: statusCharts.glucose.glucoseUnit)
+                        let vc = AddEditOverrideTableViewController(glucoseUnit: statusCharts.glucose.glucoseUnit, autoBolusCarbsEnabled: UserDefaults.standard.autoBolusCarbsEnabled)
                         vc.inputMode = .editOverride(override)
                         vc.delegate = self
                         show(vc, sender: tableView.cellForRow(at: indexPath))
@@ -1353,6 +1381,7 @@ final class StatusTableViewController: LoopChartsTableViewController {
             vc.glucoseUnit = statusCharts.glucose.glucoseUnit
             vc.overrideHistory = deviceManager.loopManager.overrideHistory.getEvents()
             vc.delegate = self
+            vc.autoBolusCarbsEnabled = UserDefaults.standard.autoBolusCarbsEnabled
         case let vc as PredictionTableViewController:
             vc.deviceManager = deviceManager
         default:
@@ -1633,6 +1662,7 @@ final class StatusTableViewController: LoopChartsTableViewController {
                                           servicesViewModel: servicesViewModel,
                                           criticalEventLogExportViewModel: CriticalEventLogExportViewModel(exporterFactory: deviceManager.criticalEventLogExportManager),
                                           therapySettings: { [weak self] in self?.deviceManager.loopManager.therapySettings ?? TherapySettings() },
+                                          loopSettings: { [weak self] in self?.deviceManager.loopManager.settings ?? LoopSettings() },
                                           sensitivityOverridesEnabled: FeatureFlags.sensitivityOverridesEnabled,
                                           initialDosingEnabled: deviceManager.loopManager.settings.dosingEnabled,
                                           isClosedLoopAllowed: automaticDosingStatus.$isAutomaticDosingAllowed,

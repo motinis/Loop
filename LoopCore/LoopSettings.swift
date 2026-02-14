@@ -30,6 +30,8 @@ public struct LoopSettings: Equatable {
     public var glucoseTargetRangeSchedule: GlucoseRangeSchedule?
 
     public var insulinSensitivitySchedule: InsulinSensitivitySchedule?
+    
+    public var sleepSchedule: SleepSchedule?
 
     public var basalRateSchedule: BasalRateSchedule?
 
@@ -83,6 +85,7 @@ public struct LoopSettings: Equatable {
         dosingEnabled: Bool = false,
         glucoseTargetRangeSchedule: GlucoseRangeSchedule? = nil,
         insulinSensitivitySchedule: InsulinSensitivitySchedule? = nil,
+        sleepSchedule: SleepSchedule? = nil,
         basalRateSchedule: BasalRateSchedule? = nil,
         carbRatioSchedule: CarbRatioSchedule? = nil,
         preMealTargetRange: ClosedRange<HKQuantity>? = nil,
@@ -99,6 +102,7 @@ public struct LoopSettings: Equatable {
         self.dosingEnabled = dosingEnabled
         self.glucoseTargetRangeSchedule = glucoseTargetRangeSchedule
         self.insulinSensitivitySchedule = insulinSensitivitySchedule
+        self.sleepSchedule = sleepSchedule
         self.basalRateSchedule = basalRateSchedule
         self.carbRatioSchedule = carbRatioSchedule
         self.preMealTargetRange = preMealTargetRange
