@@ -12,61 +12,77 @@ import SwiftUI
 
 struct LiveActivityBottomRowManagerView: View {
     @Environment(\.presentationMode) var presentationMode: Binding<PresentationMode>
-
+    
     // The maximum items in the bottom row
     private let maxSize = 4
     
     @State var showAdd: Bool = false
-    @State var configuration: [BottomRowConfiguration] = (UserDefaults.standard.liveActivity ?? LiveActivitySettings()).bottomRowConfiguration
+    @State var configuration: [BottomRowConfiguration]
+    @State private var previousConfiguration: [BottomRowConfiguration]
+    @State private var isDirty = false
+    
+    init() {
+        configuration = (UserDefaults.standard.liveActivity ?? LiveActivitySettings()).bottomRowConfiguration
+        previousConfiguration = (UserDefaults.standard.liveActivity ?? LiveActivitySettings()).bottomRowConfiguration
+    }
     
     var addItem: ActionSheet {
         var buttons: [ActionSheet.Button] = BottomRowConfiguration.all.map { item in
             ActionSheet.Button.default(Text(item.description())) {
                 configuration.append(item)
+                
+                isDirty = configuration != previousConfiguration
             }
         }
         buttons.append(.cancel(Text(NSLocalizedString("Cancel", comment: "Button text to cancel"))))
         
-        return ActionSheet(title: Text(NSLocalizedString("Add item to bottom row", comment: "Title for Add item")), buttons: buttons)
+        return ActionSheet(title: Text(NSLocalizedString("Add item to Lock Screen / CarPlay display", comment: "Title for Add item")), buttons: buttons)
     }
     
     var body: some View {
         List {
-            ForEach($configuration, id: \.self) { item in
-                HStack {
-                    deleteButton
-                        .onTapGesture {
-                            onDelete(item.wrappedValue)
-                        }
-                    Text(item.wrappedValue.description())
-                    
-                    Spacer()
-                    editBars
+            Section(header: Text("Display up to 4 items. Display label is in parentheses.", comment: "Indicates the maximum number of items that can be displayed and how the label for each item is shortened.")) {
+                ForEach($configuration, id: \.self) { item in
+                    HStack {
+                        deleteButton
+                            .onTapGesture {
+                                onDelete(item.wrappedValue)
+                                isDirty = configuration != previousConfiguration
+                            }
+                        Text(item.wrappedValue.description())
+                        Spacer()
+                        editBars
+                    }
                 }
-            }
                 .onMove(perform: onReorder)
                 .deleteDisabled(true)
+            }
             
             Section {
                 Button(action: onSave) {
                     Text(NSLocalizedString("Save", comment: ""))
                 }
+                .disabled(!isDirty)
                 .buttonStyle(ActionButtonStyle())
                 .listRowInsets(EdgeInsets())
             }
         }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(
-                        action: { showAdd = true },
-                        label: { Image(systemName: "plus") }
-                    )
-                    .disabled(configuration.count >= self.maxSize)
-                }
+        .onAppear {
+            configuration = (UserDefaults.standard.liveActivity ?? LiveActivitySettings()).bottomRowConfiguration
+            previousConfiguration = (UserDefaults.standard.liveActivity ?? LiveActivitySettings()).bottomRowConfiguration
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(
+                    action: { showAdd = true },
+                    label: { Image(systemName: "plus") }
+                )
+                .disabled(configuration.count >= self.maxSize)
             }
-            .actionSheet(isPresented: $showAdd, content: { addItem })
-            .insetGroupedListStyle()
-            .navigationBarTitle(Text(NSLocalizedString("Bottom row", comment: "Live activity Bottom row configuration title")))
+        }
+        .actionSheet(isPresented: $showAdd, content: { addItem })
+        .insetGroupedListStyle()
+        .navigationBarTitle(Text(NSLocalizedString("Configure Display", comment: "Title for the view to configure the lock screen display")))
     }
     
     @ViewBuilder
@@ -102,6 +118,7 @@ struct LiveActivityBottomRowManagerView: View {
     func onReorder(from: IndexSet, to: Int) {
         withAnimation {
             configuration.move(fromOffsets: from, toOffset: to)
+            isDirty = configuration != previousConfiguration
         }
     }
     

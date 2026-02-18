@@ -15,51 +15,46 @@ public enum BottomRowConfiguration: Codable {
     case currentBg
     case eventualBg
     case deltaBg
-    case loopCircle
     case updatedAt
     
     static let defaults: [BottomRowConfiguration] =  [.currentBg, .iob, .cob, .updatedAt]
-    public static let all: [BottomRowConfiguration] = [.iob, .cob, .basal, .currentBg, .eventualBg, .deltaBg, .loopCircle, .updatedAt]
+    public static let all: [BottomRowConfiguration] = [.iob, .cob, .basal, .currentBg, .eventualBg, .deltaBg, .updatedAt]
     
     public func name() -> String {
         switch self {
         case .iob:
-            return NSLocalizedString("IOB", comment: "")
+            return NSLocalizedString("IOB", comment: "Label used for the Insulin On Board value in the Live Activity view")
         case .cob:
-            return NSLocalizedString("COB", comment: "")
+            return NSLocalizedString("COB", comment: "Label used for the Carbohydrates On Board value in the Live Activity view")
         case .basal:
-            return NSLocalizedString("Basal", comment: "")
+            return NSLocalizedString("Basal", comment: "Label used for the Basal Rate plot in the Live Activity view")
         case .currentBg:
-            return NSLocalizedString("Current BG", comment: "")
+            return NSLocalizedString("Current BG", comment: "Label not shown in the Live Activity view")
         case .eventualBg:
-            return NSLocalizedString("Event", comment: "")
+            return NSLocalizedString("Eventual BG", comment: "Label used for the Forecasted Glucose in the Live Activity view")
         case .deltaBg:
-            return NSLocalizedString("Delta", comment: "")
-        case .loopCircle:
-            return NSLocalizedString("Loop", comment: "")
+            return NSLocalizedString("Delta", comment: "Label used for the Delta Glucose in the Live Activity view")
         case .updatedAt:
-            return NSLocalizedString("Updated", comment: "")
+            return NSLocalizedString("at", comment: "Label used for the Updated time value in the Live Activity view")
         }
     }
     
     public func description() -> String {
         switch self {
         case .iob:
-            return NSLocalizedString("Active Insulin", comment: "")
+            return NSLocalizedString("Active Insulin (IOB)", comment: "Description for the Insulin On Board selection for the Live Activity configuration")
         case .cob:
-            return NSLocalizedString("Active Carbohydrates", comment: "")
+            return NSLocalizedString("Active Carbohydrates (COB)", comment: "Description for the Carbohydrates On Board selection for the Live Activity configuration")
         case .basal:
-            return NSLocalizedString("Basal", comment: "")
+            return NSLocalizedString("Relative Basal Rate (Basal)", comment: "Description for the Basal Rate plot selection for the Live Activity configuration")
         case .currentBg:
-            return NSLocalizedString("Current Glucose", comment: "")
+            return NSLocalizedString("Current Glucose (Value and Arrow)", comment: "Description for the Current Glucose selection for the Live Activity configuration")
         case .eventualBg:
-            return NSLocalizedString("Eventually", comment: "")
+            return NSLocalizedString("Forecasted Glucose (Eventual BG)", comment: "Description for the Forecasted Glucose selection for the Live Activity configuration")
         case .deltaBg:
-            return NSLocalizedString("Delta", comment: "")
-        case .loopCircle:
-            return NSLocalizedString("Loop circle", comment: "")
+            return NSLocalizedString("Delta Glucose (Delta)", comment: "Description for the Delta Glucose selection for the Live Activity configuration")
         case .updatedAt:
-            return NSLocalizedString("Updated at", comment: "")
+            return NSLocalizedString("Updated (at)", comment: "Description for the Updated time selection for the Live Activity configuration")
         }
     }
 }
@@ -76,9 +71,9 @@ public enum LiveActivityMode: Codable, CustomStringConvertible {
     public func name() -> String {
         switch self {
         case .large:
-            return NSLocalizedString("Large", comment: "")
+            return NSLocalizedString("Plot and Row", comment: "Short name to choose the Lock Screen display including the the plot")
         case .small:
-            return NSLocalizedString("Small", comment: "")
+            return NSLocalizedString("Row Only", comment: "Short name to choose the Lock Screen display without the plot")
         }
     }
 }
@@ -117,7 +112,7 @@ public struct LiveActivitySettings: Codable, Equatable {
         self.enabled = try values.decode(Bool.self, forKey: .enabled)
         self.mode = try values.decodeIfPresent(LiveActivityMode.self, forKey: .mode) ?? .large
         self.addPredictiveLine = try values.decode(Bool.self, forKey: .addPredictiveLine)
-        self.useLimits = try values.decodeIfPresent(Bool.self, forKey: .useLimits) ?? true
+        self.useLimits = try values.decode(Bool.self, forKey: .useLimits)
         self.upperLimitChartMmol = try values.decode(Double?.self, forKey: .upperLimitChartMmol) ?? LiveActivitySettings.defaultUpperLimitMmol
         self.lowerLimitChartMmol = try values.decode(Double?.self, forKey: .lowerLimitChartMmol) ?? LiveActivitySettings.defaultLowerLimitMmol
         self.upperLimitChartMg = try values.decode(Double?.self, forKey: .upperLimitChartMg) ?? LiveActivitySettings.defaultUpperLimitMg

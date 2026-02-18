@@ -14,13 +14,21 @@ import HealthKit
 struct LiveActivityManagementView: View {
     @EnvironmentObject private var displayGlucosePreference: DisplayGlucosePreference
     @StateObject private var viewModel = LiveActivityManagementViewModel()
+    @State private var previousViewModel = LiveActivityManagementViewModel()
+    
+    @State private var isDirty = false
    
     var body: some View {
         VStack {
             List {
-                Section {
+                Section(header: Text("Lock Screen / Dynamic Island / CarPlay")) {
                     Toggle(NSLocalizedString("Enabled", comment: "Title for enable live activity toggle"), isOn: $viewModel.enabled)
-                    
+                        .onChange(of: viewModel.enabled) { _ in
+                            self.isDirty = previousViewModel.enabled != viewModel.enabled
+                        }
+                }
+
+                Section(header: Text("Select Lock Screen Display Options")){
                     ExpandableSetting(
                         isEditing: $viewModel.isEditingMode,
                         leadingValueContent: {
@@ -37,40 +45,57 @@ struct LiveActivityManagementView: View {
                                              formatter: { $0.name() })
                         }
                     )
+                    .onChange(of: viewModel.mode) { _ in
+                        self.isDirty = previousViewModel.mode != viewModel.mode
+                    }
                 }
                 
-                Section {
-                    if viewModel.mode == .large {
-                        Toggle(NSLocalizedString("Add predictive line", comment: "Title for predictive line toggle"), isOn: $viewModel.addPredictiveLine)
-                            .transition(.move(edge: viewModel.mode == .large ? .top : .bottom))
-                    }
-                    
-                    Toggle(NSLocalizedString("Use BG coloring", comment: "Title for BG coloring"), isOn: $viewModel.useLimits)
+                Section(header: Text("Display Control Options")) {
+                    Toggle(NSLocalizedString("Display prediction in plot", comment: "Title for prediction line toggle"), isOn: $viewModel.addPredictiveLine)
                         .transition(.move(edge: viewModel.mode == .large ? .top : .bottom))
+                        .onChange(of: viewModel.addPredictiveLine) { _ in
+                            self.isDirty = previousViewModel.addPredictiveLine != viewModel.addPredictiveLine
+                        }
                     
-                    if viewModel.useLimits {
+                    Toggle(NSLocalizedString("Display colors for glucose", comment: "Title for glucose coloring"), isOn: $viewModel.useLimits)
+                        .transition(.move(edge: viewModel.mode == .large ? .top : .bottom))
+                        .onChange(of: viewModel.useLimits) { _ in
+                            self.isDirty = previousViewModel.useLimits != viewModel.useLimits
+                        }
+                    
+                    if self.viewModel.useLimits {
                         if self.displayGlucosePreference.unit == .millimolesPerLiter {
                             TextInput(label: "Upper limit", value: $viewModel.upperLimitChartMmol)
                                 .transition(.move(edge: viewModel.useLimits ? .top : .bottom))
+                                .onChange(of: viewModel.upperLimitChartMmol) { _ in
+                                    self.isDirty = previousViewModel.upperLimitChartMmol != viewModel.upperLimitChartMmol
+                                }
                             TextInput(label: "Lower limit", value: $viewModel.lowerLimitChartMmol)
                                 .transition(.move(edge: viewModel.useLimits ? .top : .bottom))
+                                .onChange(of: viewModel.lowerLimitChartMmol) { _ in
+                                    self.isDirty = previousViewModel.lowerLimitChartMmol != viewModel.lowerLimitChartMmol
+                                }
                         } else {
                             TextInput(label: "Upper limit", value: $viewModel.upperLimitChartMg)
                                 .transition(.move(edge: viewModel.useLimits ? .top : .bottom))
+                                .onChange(of: viewModel.upperLimitChartMg) { _ in
+                                    self.isDirty = previousViewModel.upperLimitChartMg != viewModel.upperLimitChartMg
+                                }
                             TextInput(label: "Lower limit", value: $viewModel.lowerLimitChartMg)
                                 .transition(.move(edge: viewModel.useLimits ? .top : .bottom))
+                                .onChange(of: viewModel.lowerLimitChartMg) { _ in
+                                    self.isDirty = previousViewModel.lowerLimitChartMg != viewModel.lowerLimitChartMg
+                           }
                         }
                     }
                 }
                 
-                Section {
+                Section(header: Text("Configure Lock Screen / Carplay Row")) {
                     NavigationLink(
                         destination: LiveActivityBottomRowManagerView(),
-                        label: { Text(NSLocalizedString("Bottom row configuration", comment: "Title for Bottom row configuration")) }
+                        label: { Text(NSLocalizedString("Configure Display", comment: "")) }
                     )
                 }
-                
-                
             }
             .animation(.easeInOut, value: UUID())
             .insetGroupedListStyle()
@@ -80,6 +105,7 @@ struct LiveActivityManagementView: View {
                 Text(NSLocalizedString("Save", comment: ""))
             }
             .buttonStyle(ActionButtonStyle())
+            .disabled(!isDirty)
             .padding([.bottom, .horizontal])
         }
             .navigationBarTitle(Text(NSLocalizedString("Live activity", comment: "Live activity screen title")))
@@ -109,5 +135,8 @@ struct LiveActivityManagementView: View {
         
         UserDefaults.standard.liveActivity = settings
         NotificationCenter.default.post(name: .LiveActivitySettingsChanged, object: settings)
+        
+        self.isDirty = false
+        previousViewModel = LiveActivityManagementViewModel()
     }
 }

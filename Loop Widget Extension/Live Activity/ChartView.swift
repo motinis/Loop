@@ -10,12 +10,14 @@ import Foundation
 import SwiftUI
 import Charts
 
+@available(iOS 16.2, *)
 struct ChartView: View {
     private let glucoseSampleData: [ChartValues]
     private let predicatedData: [ChartValues]
     private let glucoseRanges: [GlucoseRangeValue]
     private let preset: Preset?
     private let yAxisMarks: [Double]
+    private let colorGradient: LinearGradient
     
     init(glucoseSamples: [GlucoseSampleAttributes], predicatedGlucose: [Double], predicatedStartDate: Date?, predicatedInterval: TimeInterval?, useLimits: Bool, lowerLimit: Double, upperLimit: Double, glucoseRanges: [GlucoseRangeValue], preset: Preset?, yAxisMarks: [Double]) {
         self.glucoseSampleData = ChartValues.convert(data: glucoseSamples, useLimits: useLimits, lowerLimit: lowerLimit, upperLimit: upperLimit)
@@ -27,6 +29,7 @@ struct ChartView: View {
             lowerLimit: lowerLimit,
             upperLimit: upperLimit
         )
+        self.colorGradient = ChartView.getGradient(useLimits: useLimits, lowerLimit: lowerLimit, upperLimit: upperLimit, highestValue: yAxisMarks.max() ?? 1)
         self.preset = preset
         self.glucoseRanges = glucoseRanges
         self.yAxisMarks = yAxisMarks
@@ -38,6 +41,28 @@ struct ChartView: View {
         self.preset = preset
         self.glucoseRanges = glucoseRanges
         self.yAxisMarks = yAxisMarks
+        self.colorGradient = ChartView.getGradient(useLimits: useLimits, lowerLimit: lowerLimit, upperLimit: upperLimit, highestValue: yAxisMarks.max() ?? 1)
+    }
+
+    private static func getGradient(useLimits: Bool, lowerLimit: Double, upperLimit: Double, highestValue: Double) -> LinearGradient {
+        var stops: [Gradient.Stop] = [Gradient.Stop(color: Color("glucose"), location: 0)]
+        if useLimits {
+            let lowerStop = lowerLimit / highestValue
+            let upperStop = upperLimit / highestValue
+            stops = [
+                Gradient.Stop(color: .red, location: 0),
+                Gradient.Stop(color: .red, location: lowerStop - 0.01),
+                Gradient.Stop(color: .green, location: lowerStop),
+                Gradient.Stop(color: .green, location: upperStop),
+                Gradient.Stop(color: .orange, location: upperStop + 0.01),
+                Gradient.Stop(color: .orange, location: 600), // Just use the mg/dl limit for the most upper value
+            ]
+        }
+        return LinearGradient(
+            gradient: Gradient(stops: stops),
+            startPoint: .bottom,
+            endPoint: .top
+        )
     }
     
     var body: some View {
@@ -69,7 +94,7 @@ struct ChartView: View {
                     PointMark (x: .value("Date", item.x),
                                y: .value("Glucose level", item.y)
                     )
-                    .symbolSize(20)
+                    .symbolSize(10)
                     .foregroundStyle(by: .value("Color", item.color))
                 }
                 
@@ -77,14 +102,15 @@ struct ChartView: View {
                     LineMark (x: .value("Date", item.x),
                               y: .value("Glucose level", item.y)
                     )
-                    .lineStyle(StrokeStyle(lineWidth: 3, dash: [2, 3]))
+                    .lineStyle(StrokeStyle(lineWidth: 2, dash: [6, 5]))
+                    .foregroundStyle(colorGradient)
                 }
             }
             .chartForegroundStyleScale([
                 "Good": .green,
                 "High": .orange,
                 "Low": .red,
-                "Default": .blue
+                "Default": Color("glucose")
             ])
             .chartPlotStyle { plotContent in
                 plotContent.background(.cyan.opacity(0.15))
@@ -142,7 +168,7 @@ struct ChartValues: Identifiable {
             return ChartValues(
                 x: startDate.addingTimeInterval(interval * Double(index)),
                 y: item,
-                color: !useLimits ? "Default" : item < lowerLimit ? "Low" : item > upperLimit ? "High" : "Good"
+                color: "Default" // Color is handled by the gradient
             )
         }
     }
