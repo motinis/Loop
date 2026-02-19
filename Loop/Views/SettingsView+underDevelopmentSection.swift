@@ -38,10 +38,13 @@ public struct UnderDevelopmentSettingsView: View {
                 .foregroundColor(.secondary)
 
                 Divider()
+                /*
+                 TODO finish implementing
                 NavigationLink(destination: CarbBolusSelectionView()) {
                     ExperimentRow(name: NSLocalizedString("Carb Bolus Recommendation", comment: "Title of carb bolus recommendation feature"), enabled: nil)
                 }
                 Spacer()
+                 */
             }
             .padding()
         }

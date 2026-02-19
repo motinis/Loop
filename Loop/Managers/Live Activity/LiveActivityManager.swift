@@ -154,10 +154,12 @@ class LiveActivityManager : LiveActivityManagerProxy {
             
             var glucoseRanges: [GlucoseRangeValue] = []
             if let glucoseRangeSchedule = self.loopSettings.glucoseTargetRangeSchedule, let start = glucoseSamples.first?.startDate {
+                let historyInterval: TimeInterval = settings.addPredictiveLine ? .hours(-2) : .hours(-6) // consistent with getGlucoseSample
+                let rangeStart = max(start, endDateChart.addingTimeInterval(historyInterval))
                 glucoseRanges = getGlucoseRanges(
                     glucoseRangeSchedule: glucoseRangeSchedule,
                     presetContext: presetContext,
-                    start: start,
+                    start: rangeStart,
                     end: endDateChart,
                     unit: unit
                 )

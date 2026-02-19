@@ -503,6 +503,12 @@
 		C1FB428D21791D2500FAB378 /* PumpManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C3B6F620BBCAA30026CAFA /* PumpManager.swift */; };
 		C1FB428F217921D600FAB378 /* PumpManagerUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FB428E217921D600FAB378 /* PumpManagerUI.swift */; };
 		C1FB4290217922A100FAB378 /* PumpManagerUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FB428E217921D600FAB378 /* PumpManagerUI.swift */; };
+		CD3886702F4710E30018D245 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD38866F2F4710E30018D245 /* Preferences.swift */; };
+		CD3886882F4711FC0018D245 /* AutoBolusCarbsSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3886832F4711FC0018D245 /* AutoBolusCarbsSelectionView.swift */; };
+		CD3886892F4711FC0018D245 /* CarbReactiveRestrospectiveCorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3886842F4711FC0018D245 /* CarbReactiveRestrospectiveCorrection.swift */; };
+		CD38868A2F4711FC0018D245 /* GlucoseMomentumReductionSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3886852F4711FC0018D245 /* GlucoseMomentumReductionSelectionView.swift */; };
+		CD38868B2F4711FC0018D245 /* NegativeInsulinDamperSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3886862F4711FC0018D245 /* NegativeInsulinDamperSelectionView.swift */; };
+		CD38868C2F4711FC0018D245 /* SettingsView+underDevelopmentSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3886872F4711FC0018D245 /* SettingsView+underDevelopmentSection.swift */; };
 		DD3DBD292A33AFE9000F8B5B /* IntegralRetrospectiveCorrectionSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3DBD282A33AFE9000F8B5B /* IntegralRetrospectiveCorrectionSelectionView.swift */; };
 		DDC389F62A2B61750066E2E8 /* ApplicationFactorStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC389F52A2B61750066E2E8 /* ApplicationFactorStrategy.swift */; };
 		DDC389F82A2B620B0066E2E8 /* GlucoseBasedApplicationFactorStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC389F72A2B620B0066E2E8 /* GlucoseBasedApplicationFactorStrategy.swift */; };
@@ -1320,6 +1326,12 @@
 		C1F8B1DB223862D500DD66CF /* BolusProgressTableViewCell.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = BolusProgressTableViewCell.xib; sourceTree = "<group>"; };
 		C1FB428B217806A300FAB378 /* StateColorPalette.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StateColorPalette.swift; sourceTree = "<group>"; };
 		C1FB428E217921D600FAB378 /* PumpManagerUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpManagerUI.swift; sourceTree = "<group>"; };
+		CD38866F2F4710E30018D245 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
+		CD3886832F4711FC0018D245 /* AutoBolusCarbsSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoBolusCarbsSelectionView.swift; sourceTree = "<group>"; };
+		CD3886842F4711FC0018D245 /* CarbReactiveRestrospectiveCorrection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbReactiveRestrospectiveCorrection.swift; sourceTree = "<group>"; };
+		CD3886852F4711FC0018D245 /* GlucoseMomentumReductionSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseMomentumReductionSelectionView.swift; sourceTree = "<group>"; };
+		CD3886862F4711FC0018D245 /* NegativeInsulinDamperSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NegativeInsulinDamperSelectionView.swift; sourceTree = "<group>"; };
+		CD3886872F4711FC0018D245 /* SettingsView+underDevelopmentSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView+underDevelopmentSection.swift"; sourceTree = "<group>"; };
 		DD3DBD282A33AFE9000F8B5B /* IntegralRetrospectiveCorrectionSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegralRetrospectiveCorrectionSelectionView.swift; sourceTree = "<group>"; };
 		DDC389F52A2B61750066E2E8 /* ApplicationFactorStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationFactorStrategy.swift; sourceTree = "<group>"; };
 		DDC389F72A2B620B0066E2E8 /* GlucoseBasedApplicationFactorStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseBasedApplicationFactorStrategy.swift; sourceTree = "<group>"; };
@@ -1671,6 +1683,7 @@
 				C17824A41E1AD4D100D9D25C /* ManualBolusRecommendation.swift */,
 				4F526D601DF8D9A900A04910 /* NetBasal.swift */,
 				438D42F81D7C88BC003244B0 /* PredictionInputEffect.swift */,
+				CD38866F2F4710E30018D245 /* Preferences.swift */,
 				C19008FD25225D3900721625 /* SimpleBolusCalculator.swift */,
 				C1E3862428247B7100F561A4 /* StoredLoopNotRunningNotification.swift */,
 				4328E0311CFC068900E199AA /* WatchContext+LoopKit.swift */,
@@ -1960,6 +1973,11 @@
 		43F5C2CF1B92A2ED003EB13D /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				CD3886832F4711FC0018D245 /* AutoBolusCarbsSelectionView.swift */,
+				CD3886842F4711FC0018D245 /* CarbReactiveRestrospectiveCorrection.swift */,
+				CD3886852F4711FC0018D245 /* GlucoseMomentumReductionSelectionView.swift */,
+				CD3886862F4711FC0018D245 /* NegativeInsulinDamperSelectionView.swift */,
+				CD3886872F4711FC0018D245 /* SettingsView+underDevelopmentSection.swift */,
 				1452F4AA2A851EDF00F8B9E4 /* AddEditFavoriteFoodView.swift */,
 				B4001CED28CBBC82002FB414 /* AlertManagementView.swift */,
 				897A5A9524C2175B00C4E71D /* BolusEntryView.swift */,
@@ -3481,6 +3499,7 @@
 				1DB619AC270BAD3D006C9D07 /* VersionUpdateViewModel.swift in Sources */,
 				A9C62D882331703100535612 /* Service.swift in Sources */,
 				89CAB36324C8FE96009EE3CE /* PredictedGlucoseChartView.swift in Sources */,
+				CD3886702F4710E30018D245 /* Preferences.swift in Sources */,
 				DDC389F82A2B620B0066E2E8 /* GlucoseBasedApplicationFactorStrategy.swift in Sources */,
 				4F6663941E905FD2009E74FC /* ChartColorPalette+Loop.swift in Sources */,
 				A9F703732489BC8500C98AD8 /* CarbStore+SimulatedCoreData.swift in Sources */,
@@ -3569,6 +3588,11 @@
 				8968B1122408B3520074BB48 /* UIFont.swift in Sources */,
 				1452F4A92A851C9400F8B9E4 /* AddEditFavoriteFoodViewModel.swift in Sources */,
 				438D42FB1D7D11A4003244B0 /* PredictionInputEffectTableViewCell.swift in Sources */,
+				CD3886882F4711FC0018D245 /* AutoBolusCarbsSelectionView.swift in Sources */,
+				CD3886892F4711FC0018D245 /* CarbReactiveRestrospectiveCorrection.swift in Sources */,
+				CD38868A2F4711FC0018D245 /* GlucoseMomentumReductionSelectionView.swift in Sources */,
+				CD38868B2F4711FC0018D245 /* NegativeInsulinDamperSelectionView.swift in Sources */,
+				CD38868C2F4711FC0018D245 /* SettingsView+underDevelopmentSection.swift in Sources */,
 				89A1B66E24ABFDF800117AC2 /* SupportedBolusVolumesUserInfo.swift in Sources */,
 				C1C660D1252E4DD5009B5C32 /* LoopConstants.swift in Sources */,
 				432E73CB1D24B3D6009AD15D /* RemoteDataServicesManager.swift in Sources */,

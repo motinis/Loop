@@ -26,7 +26,7 @@ struct NegativeInsulinDamperSelectionView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .none
         formatter.timeStyle = .short
-        formatter.timeZone = .gmt
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }
     

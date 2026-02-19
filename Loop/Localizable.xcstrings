@@ -4,6 +4,12 @@
     "" : {
 
     },
+    " " : {
+
+    },
+    "  " : {
+
+    },
     " (pending: %@)" : {
       "comment" : "The string format appended to active insulin that describes pending insulin. (1: pending insulin)",
       "extractionState" : "manual",
@@ -586,6 +592,15 @@
           }
         }
       }
+    },
+    "**Always Bolus Carbs:** Set the Threshold Percentage as desired. Set the Application Factor Minimum and Maximum to 100%" : {
+
+    },
+    "**Always Correct for Carbs:** Set the Threshold Percentage to 0%, and the Application Factor Minimum and Maximum to 20% for Basal and GPBA. Set the Application Factor Minimum and Maximum to 40% for Auto-Bolus." : {
+
+    },
+    "**Faster Carb Correction:** Set the Threshold Percentage to 100%, and the Application Factor Maximum above 20% for Basal and GPBA.  Set above 40% for Auto-Bolus." : {
+
     },
     "%@ %@" : {
       "comment" : "The format for an active custom preset. (1: preset symbol)(2: preset name)",
@@ -1563,6 +1578,9 @@
           }
         }
       }
+    },
+    "%1$@ %2$@ %3$@" : {
+      "comment" : "Formats (1: food type, 2: carbs, 3: unit)"
     },
     "%1$@ %2$@/U" : {
       "comment" : "Format string for carb ratio average. (1: value)(2: carb unit)",
@@ -3136,6 +3154,9 @@
         }
       }
     },
+    "+ %1$@" : {
+      "comment" : "Formats (1: carb absorption duration)"
+    },
     "⚠️" : {
       "localizations" : {
         "da" : {
@@ -3193,6 +3214,21 @@
           }
         }
       }
+    },
+    "🚧 🚧 🚧" : {
+
+    },
+    "🚧 Enable Carb-Reactive Retrospective Correction" : {
+      "comment" : "Title for Carb-Reactive Retrospective Correctiont toggle"
+    },
+    "🚧 Enable Glucose Momentum Reduction" : {
+      "comment" : "Title for Glucose Momentum Reduction toggle"
+    },
+    "🚧 Enable When Asleep" : {
+      "comment" : "Title for Glucose Momentum Reduction When Asleep toggle"
+    },
+    "🚧 Under Development 🚧" : {
+      "comment" : "Navigation title for under development screen\nThe title of the Under Development section in settings"
     },
     "15 min glucose regression coefficient (b₁), continued with decay over 30 min" : {
       "comment" : "Description of the prediction input effect for glucose momentum",
@@ -7385,6 +7421,12 @@
         }
       }
     },
+    "Application Factor Maximum" : {
+      "comment" : "Title for Auto-Bolus Carbs Application Factor Maximum"
+    },
+    "Application Factor Minimum" : {
+      "comment" : "Title for Auto-Bolus Carbs Application Factor Minimum"
+    },
     "Are you sure you want to delete all history entries?" : {
       "comment" : "Action sheet confirmation message for pump history deletion",
       "localizations" : {
@@ -8418,6 +8460,18 @@
           }
         }
       }
+    },
+    "Auto-Bolus Carbs" : {
+      "comment" : "Title for auto-bolus carbs experiment description\nTitle of auto-bolus carbs experiment"
+    },
+    "Auto-Bolus Carbs (ABC) is a modification of how Loop corrects each loop cycle. When enabled and active, Loop will check how much insulin is needed to cover existing carbs (similar to doing a manual bolus but without correcting for grucose). If this amount times the application factor is greater than the usual correction, a bolus for that amount will be given. Overrides can also be used to activate or deactivate. When ABC is enabled and active a %@ will appear beside Active Carbohydrates on the status screen." : {
+      "comment" : "Description of Auto-Bolus Carbs toggles."
+    },
+    "Auto-Bolus Carbs Active by Default" : {
+      "comment" : "Title for Auto-Bolus Carbs Active by Default toggle"
+    },
+    "Auto-Bolus Carbs Enabled" : {
+      "comment" : "Title for Auto-Bolus Carbs Enabled toggle"
     },
     "Basal Rate Schedule" : {
       "comment" : "Details for configuration error when basal rate schedule is missing",
@@ -10156,6 +10210,9 @@
         }
       }
     },
+    "Carb Bolus Recommendation" : {
+      "comment" : "Title of carb bolus recommendation feature"
+    },
     "Carb effects" : {
       "comment" : "Details for missing data error when carb effects are missing",
       "localizations" : {
@@ -10282,7 +10339,7 @@
       }
     },
     "Carb Entry" : {
-      "comment" : "Label for carb entry row on bolus screen",
+      "comment" : "Label for carb bolus row on bolus screen\nLabel for carb entry row on bolus screen",
       "localizations" : {
         "da" : {
           "stringUnit" : {
@@ -10757,6 +10814,12 @@
           }
         }
       }
+    },
+    "Carb-Reactive Retrospective Correction" : {
+      "comment" : "Title for carb reactive retrospective correction experiment description\nTitle of reactive-carb retrospective correction experiment"
+    },
+    "Carb-Reactive Retrospective Correction (CRRC) is an extension to the Loop Algorithm which allows Loop to respond more dynamically to carb absorption. When carbs are absorbed faster than predicted, Loop's standard retrospective prediction reflects the actual rate of absorption rather than the predicted, resulting in zero discrepancy. When carbs are absorbed at least twice as fast as predicted, CRRC reduces the retrospective prediction by up to half (where faster absorption results in more reduction), and additional insulin may thus be delivered sooner. This is useful when insulin needs are higher or more carbs are consumed than entered." : {
+      "comment" : "Description of Carb-Reactive Retrospective Correction toggle."
     },
     "Carbohydrate Entry Too Large" : {
       "comment" : "Title for bolus screen warning when carbohydrate entry is too large",
@@ -12466,6 +12529,9 @@
         }
       }
     },
+    "COB Correction" : {
+      "comment" : "Label for COB correction bolus row on bolus screen"
+    },
     "com.loudnate.InsulinKit.IOBDateLabel" : {
       "comment" : "The format string describing the date of an IOB value. The first format argument is the localized date.",
       "extractionState" : "extracted_with_value",
@@ -13165,6 +13231,9 @@
     "Configure Lock Screen / Carplay Row" : {
       "comment" : "A link that takes the user to a view where they can configure the display of the live activity screen on their lock screen and in CarPlay.",
       "isCommentAutoGenerated" : true
+    },
+    "Consuming Soon" : {
+      "comment" : "Label for consuming soon row on carb entry screen"
     },
     "Continue" : {
       "comment" : "Button label for continue\nDefault alert dismissal",
@@ -14366,6 +14435,15 @@
           }
         }
       }
+    },
+    "Customize your Loop experience by adjusting additional settings" : {
+      "comment" : "Descriptive text for Preferences"
+    },
+    "Damper strength may also be reduced while asleep. This option should be used if the damper is too strong when asleep resulting in extended times with glucose higher than desired." : {
+      "comment" : "Description of sleep schedule impact on NID toggle"
+    },
+    "Damper Strength: %1$@%%" : {
+      "comment" : "Format string describing damper strength. (1: damper strength percentage)"
     },
     "Date" : {
       "comment" : "Date picker label",
@@ -16763,6 +16841,9 @@
         }
       }
     },
+    "Enable Negative Insulin Damper" : {
+      "comment" : "Title for Negative Insulin Damper toggle"
+    },
     "Enabled" : {
       "comment" : "Title for enable live activity toggle",
       "localizations" : {
@@ -18231,6 +18312,9 @@
           }
         }
       }
+    },
+    "Exclusions" : {
+      "comment" : "Label for exclusions row on bolus screen"
     },
     "Export Critical Event Logs" : {
       "comment" : "The title of the export critical event logs in support",
@@ -19768,6 +19852,9 @@
         }
       }
     },
+    "Glucose Correction" : {
+      "comment" : "Label for glucose correction bolus row on bolus screen"
+    },
     "Glucose data is %1$@ old" : {
       "comment" : "The error message when glucose data is too old to be used. (1: glucose data age in minutes)",
       "localizations" : {
@@ -20344,6 +20431,15 @@
         }
       }
     },
+    "Glucose Momentum Reduction" : {
+      "comment" : "Title for glucose momentum reduction experiment description\nTitle of glucose momentum reduction experiment"
+    },
+    "Glucose Momentum Reduction (GMR) is an extension to the Loop Algorithm. When enabled, GMR reduces glucose momentum when glucose has increased over the previous 20 minutes. This can prevent Loop from correcting too aggressively when handling transient spikes. The reduction is greater when glucose has increased more." : {
+      "comment" : "Description of Glucose Momentum Reduction toggle."
+    },
+    "Glucose Safety Limit" : {
+      "comment" : "Label for glucose safety limit row on bolus screen"
+    },
     "Glucose Target Range Schedule" : {
       "comment" : "Details for configuration error when glucose target range schedule is missing",
       "localizations" : {
@@ -20414,6 +20510,9 @@
           }
         }
       }
+    },
+    "GMR may also be additionally enabled when sleeping. By default, it is not enabled since spikes are less likely to be transient when asleep." : {
+      "comment" : "Description of Glucose Momentum Reduction enabled when asleep toggle."
     },
     "HARDWARE SOUNDS" : {
       "localizations" : {
@@ -20935,6 +21034,9 @@
           }
         }
       }
+    },
+    "In future versions of Loop these features may change, end up as standard parts of Loop, or be removed from Loop entirely. Please follow along in the Loop Zulip chat to stay informed of possible changes to these features." : {
+      "comment" : "Under development description second paragraph."
     },
     "Indefinitely" : {
       "comment" : "The title of a target alert action specifying an indefinitely long workout targets duration",
@@ -25089,6 +25191,9 @@
         }
       }
     },
+    "Max Bolus Limit" : {
+      "comment" : "Label for max bolus row on bolus screen"
+    },
     "Maximum Basal Rate Per Hour" : {
       "comment" : "Details for configuration error when maximum basal rate per hour is missing",
       "localizations" : {
@@ -26692,6 +26797,12 @@
           }
         }
       }
+    },
+    "Negative Insulin Damper" : {
+      "comment" : "Title for negative insulin damper experiment description\nTitle of negative insulin damper experiment\nTitle of the prediction input effect for negative insulin damper"
+    },
+    "Negative Insulin Damper (NID) is used to mitigate the effects of temporarily increased insulin sensitivity. Such increases can result in spending significant times beneath target and eventually going low. Loop may erroneously predict glucose going too high, resulting in excess insulin being delivered. To counteract this, NID acts as a dynamic damper on increases to  predicted glucose. The strength of this damper is controlled by the total predicted rise in glucose due to negative insulin. The greater the amount of negative insulin, the stronger the damper and the bigger the reductions. The calculation is done with a 15 minute lag." : {
+      "comment" : "Description of Negative Insulin Damper toggle."
     },
     "New Favorite Food" : {
       "comment" : "Title of new favorite food screen",
@@ -28921,6 +29032,9 @@
         }
       }
     },
+    "Potential duplicate carb entries:" : {
+
+    },
     "Pre-Meal Targets" : {
       "comment" : "The label of the pre-meal mode toggle button",
       "localizations" : {
@@ -29773,6 +29887,9 @@
         }
       }
     },
+    "Preferences" : {
+      "comment" : "Title text for button to Preferences"
+    },
     "Preparing Critical Event Logs" : {
       "comment" : "Preparing critical event log text",
       "localizations" : {
@@ -30110,6 +30227,9 @@
           }
         }
       }
+    },
+    "Profiles" : {
+      "comment" : "Title text for button to Profiles"
     },
     "Pump" : {
       "comment" : "The title of the pump section in settings",
@@ -32237,6 +32357,15 @@
         }
       }
     },
+    "Reduce Strength When Asleep" : {
+      "comment" : "Title for the NID sleep schedule reduction toggle"
+    },
+    "Reduces increases in glucose. The damper is stronger when there is more negative insulin" : {
+      "comment" : "Description of the prediction input effect for negative insulin damper"
+    },
+    "Reduction: %1$@" : {
+      "comment" : "Format string describing glucose momentum reduction. (1: glucose momentum reduction adjustment)"
+    },
     "Remote Bolus Entry: %@ U" : {
       "comment" : "The notification title for a remote bolus. (1: Bolus amount)\nThe notification title for a remote failure. (1: Bolus amount)",
       "localizations" : {
@@ -33488,6 +33617,9 @@
         }
       }
     },
+    "Settings Examples" : {
+      "comment" : "Title for Auto-Bolus Carbs Settings Examples"
+    },
     "Setup Incomplete" : {
       "comment" : "The title of the cell indicating that onboarding is suspended",
       "localizations" : {
@@ -34112,6 +34244,12 @@
           }
         }
       }
+    },
+    "Sleep Schedule is Disabled" : {
+      "comment" : "Sleep schedule disabled sublabel for GMR When Asleep toggle\nSleep schedule disabled sublabel for NID sleep schedule reduction toggle"
+    },
+    "Sleep Schedule: %1$@ - %2$@ (%3$@)" : {
+      "comment" : "Sleep schedule sublabel format for GMR When Asleep toggle\nSleep schedule sublabel format for NID sleep schedule reduction toggle"
     },
     "Software Update" : {
       "comment" : "Software update button link text",
@@ -34766,6 +34904,9 @@
           }
         }
       }
+    },
+    "Switch between profiles for different scenarios" : {
+      "comment" : "Descriptive text for Profiles"
     },
     "Tap here to set up a CGM" : {
       "comment" : "Descriptive text for button to add CGM device",
@@ -35673,6 +35814,9 @@
         }
       }
     },
+    "The application factor is glucose-based. When glucose is beneath the threshold, no bolus will be given. The application factor increases linearly from the minimum at the threshold to the maximum value at the lower boundary of the correction range." : {
+      "comment" : "Description of Auto-Bolus Carbs GBAF"
+    },
     "The bolus amount entered is smaller than the minimum deliverable." : {
       "comment" : "Alert message for a bolus too small validation error",
       "localizations" : {
@@ -35927,6 +36071,9 @@
           }
         }
       }
+    },
+    "The examples below relate to three different automatic dosing strategies; Basal, Auto-Bolus, and Auto-Bolus with Glucose Based Partial Application (GPBA).\n" : {
+      "comment" : "ABC example dosing strategy explanation"
     },
     "The legacy model used by Loop, allowing customization of action duration." : {
       "comment" : "Subtitle description of Walsh insulin model setting",
@@ -36536,6 +36683,9 @@
         }
       }
     },
+    "The threshold percentage controls how far between the suspend threshold and the correction range the threshold is set, where 0% is the suspend threshold and 100% is the lower boundary of the correction range." : {
+      "comment" : "Description of Auto-Bolus Carbs threshold"
+    },
     "Therapy Settings" : {
       "comment" : "Title text for button to Therapy Settings",
       "localizations" : {
@@ -36631,6 +36781,9 @@
         }
       }
     },
+    "These features are under development. They may not have been tested thorougly." : {
+      "comment" : "Under Development description."
+    },
     "This option only applies when Loop's Dosing Strategy is set to Automatic Bolus." : {
       "comment" : "String shown when glucose based partial application cannot be enabled because dosing strategy is not set to Automatic Bolus",
       "localizations" : {
@@ -36689,6 +36842,9 @@
           }
         }
       }
+    },
+    "Threshold Percentage" : {
+      "comment" : "Title for Auto-Bolus Carbs Threshold Percentage"
     },
     "Time Sensitive Alerts" : {
       "localizations" : {
