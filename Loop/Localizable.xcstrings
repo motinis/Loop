@@ -14598,7 +14598,7 @@
     "Damper strength may also be reduced while asleep. This option should be used if the damper is too strong when asleep resulting in extended times with glucose higher than desired." : {
       "comment" : "Description of sleep schedule impact on NID toggle"
     },
-    "Damper Strength: %1$@%%" : {
+    "Damper Strength: %1$@" : {
       "comment" : "Format string describing damper strength. (1: damper strength percentage)"
     },
     "Date" : {
