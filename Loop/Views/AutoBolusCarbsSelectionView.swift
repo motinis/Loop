@@ -111,7 +111,7 @@ public struct AutoBolusCarbsSelectionView: View {
                 HStack {
                     Text(NSLocalizedString("Application Factor Maximum", comment: "Title for Auto-Bolus Carbs Application Factor Maximum"))
                     Spacer()
-                    Picker(selection: $applicationFactorMin, label: EmptyView()) {
+                    Picker(selection: $applicationFactorMax, label: EmptyView()) {
                         ForEach(percentages, id: \.self) { factor in
                             Text(percentFormatter.string(from: factor)!)
                         }
