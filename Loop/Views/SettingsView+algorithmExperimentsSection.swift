@@ -245,7 +245,7 @@ extension UserDefaults {
     
     var autoBolusCarbsApplicationFactorMax: Double {
         get {
-            let result = double(forKey: Key.AutoBolusCarbsApplicationFactorMin.rawValue) as Double
+            let result = double(forKey: Key.AutoBolusCarbsApplicationFactorMax.rawValue) as Double
             return result != 0.0 ? result : Self.DEFAULT_AUTO_BOLUS_CARBS_APPLICATION_FACTOR_MAX
         }
         set {
