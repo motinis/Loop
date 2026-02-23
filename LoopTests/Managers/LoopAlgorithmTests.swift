@@ -49,6 +49,7 @@ final class LoopAlgorithmTests: XCTestCase {
     }
 
     // SKIPPED: Live Capture Input Data Isn't Relevant After Other Fixes
+    // SKIPPED: ISF end dates do not capture the entire range, so this test fails when using LoopKit accurate insulin effects
     func skip_testLiveCaptureWithFunctionalAlgorithm() throws {
         // This matches the "testForecastFromLiveCaptureInputData" test of LoopDataManagerDosingTests,
         // Using the same input data, but generating the forecast using the LoopAlgorithm.generatePrediction()

@@ -244,6 +244,18 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         XCTAssertEqual(1.40, recommendedTempBasal!.unitsPerHour, accuracy: defaultAccuracy)
     }
     
+    func getDosageRatioForHighAndStable() -> Double {
+        // ISF schedule switches at 09:00, dose is given at ~5:39.
+        // This means that 36.39/45 of a unit dose is given at ISF 45, and then the remainder is at 55
+        let weight = 36.393359243966223 / 45.0
+        return weight + (1 - weight) * 45.0 / 55
+    }
+    
+    func getDosageForHighAndStableTempBasal(_ value: Double) -> Double {
+        // the scheduled basal is 1 U/hr, therefore this part should not be adjusted
+        return 1.0 + getDosageRatioForHighAndStable() * (value - 1.0)
+    }
+    
     func testHighAndStable() {
         setUp(for: .highAndStable)
         let predictedGlucoseOutput = loadLocalDateGlucoseEffect("high_and_stable_predicted_glucose")
@@ -267,8 +279,10 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
             XCTAssertEqual(expected.startDate, calculated.startDate)
             XCTAssertEqual(expected.quantity.doubleValue(for: .milligramsPerDeciliter), calculated.quantity.doubleValue(for: .milligramsPerDeciliter), accuracy: defaultAccuracy)
         }
+        
+        // ISF changes from
 
-        XCTAssertEqual(4.63, recommendedBasal!.unitsPerHour, accuracy: defaultAccuracy)
+        XCTAssertEqual(getDosageForHighAndStableTempBasal(4.63), recommendedBasal!.unitsPerHour, accuracy: defaultAccuracy)
     }
     
     func testCarbResponsiveRetrospectiveCorrectionActive() {
@@ -469,7 +483,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         updateGroup.wait()
 
         XCTAssertNotNil(recommendedBolus)
-        XCTAssertEqual(0.4 * (expectedCobCorrectionAmount + expectedBgCorrectionAmount), recommendedBolus!, accuracy: defaultAccuracy)
+        XCTAssertEqual(getDosageRatioForHighAndStable() * 0.4 * (expectedCobCorrectionAmount + expectedBgCorrectionAmount), recommendedBolus!, accuracy: defaultAccuracy)
     }
     
     func testHighAndStableWithAutoBolusCarbsForABCResultVsAutoBolus() {
@@ -501,7 +515,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         updateGroup.wait()
 
         XCTAssertNotNil(recommendedBolus)
-        XCTAssertEqual(expectedCobCorrectionAmount, recommendedBolus!, accuracy: defaultAccuracy)
+        XCTAssertEqual(getDosageRatioForHighAndStable() * expectedCobCorrectionAmount, recommendedBolus!, accuracy: defaultAccuracy)
     }
     
     func testHighAndStableWithAutoBolusCarbsForABCResultVsAutoBolusWithMaxFactor() {
@@ -538,7 +552,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         updateGroup.wait()
 
         XCTAssertNotNil(recommendedBolus)
-        XCTAssertEqual(maxFactor * expectedCobCorrectionAmount, recommendedBolus!, accuracy: defaultAccuracy)
+        XCTAssertEqual(getDosageRatioForHighAndStable() * maxFactor * expectedCobCorrectionAmount, recommendedBolus!, accuracy: defaultAccuracy)
     }
     
     func testHighAndStableWithAutoBolusCarbsForTempBasalResult() {
@@ -570,7 +584,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         updateGroup.wait()
 
         // unadjusted basal rate is 1.0
-        XCTAssertEqual(1.0 + 2*(expectedBgCorrectionAmount + expectedCobCorrectionAmount), recommendedBasal!.unitsPerHour, accuracy: defaultAccuracy)
+        XCTAssertEqual(getDosageForHighAndStableTempBasal(1.0 + 2*(expectedBgCorrectionAmount + expectedCobCorrectionAmount)), recommendedBasal!.unitsPerHour, accuracy: defaultAccuracy)
     }
     
     func testHighAndStableWithAutoBolusCarbsForABCResultvsTempBasal() {
@@ -602,7 +616,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         updateGroup.wait()
 
         XCTAssertNotNil(recommendedBolus)
-        XCTAssertEqual(expectedCobCorrectionAmount, recommendedBolus!, accuracy: defaultAccuracy)
+        XCTAssertEqual(getDosageRatioForHighAndStable() * expectedCobCorrectionAmount, recommendedBolus!, accuracy: defaultAccuracy)
     }
     
     func testHighAndFalling() {
@@ -834,7 +848,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         }
         loopDataManager.loop()
         wait(for: [exp], timeout: 1.0)
-        let expectedAutomaticDoseRecommendation = AutomaticDoseRecommendation(basalAdjustment: TempBasalRecommendation(unitsPerHour: 4.55, duration: .minutes(30)))
+        let expectedAutomaticDoseRecommendation = AutomaticDoseRecommendation(basalAdjustment: TempBasalRecommendation(unitsPerHour: delegate.roundBasalRate(unitsPerHour: getDosageForHighAndStableTempBasal(4.57)), duration: .minutes(30)))
         XCTAssertEqual(delegate.recommendation, expectedAutomaticDoseRecommendation)
         XCTAssertEqual(dosingDecisionStore.dosingDecisions.count, 1)
         if dosingDecisionStore.dosingDecisions.count == 1 {
@@ -858,7 +872,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         }
         loopDataManager.loop()
         wait(for: [exp], timeout: 1.0)
-        let expectedAutomaticDoseRecommendation = AutomaticDoseRecommendation(basalAdjustment: TempBasalRecommendation(unitsPerHour: 4.55, duration: .minutes(30)))
+        let expectedAutomaticDoseRecommendation = AutomaticDoseRecommendation(basalAdjustment: TempBasalRecommendation(unitsPerHour: delegate.roundBasalRate( unitsPerHour: getDosageForHighAndStableTempBasal(4.57)), duration: .minutes(30)))
         XCTAssertNil(delegate.recommendation)
         XCTAssertEqual(dosingDecisionStore.dosingDecisions.count, 1)
         XCTAssertEqual(dosingDecisionStore.dosingDecisions[0].reason, "loop")
@@ -935,6 +949,11 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         
         var recommendedBolus: ManualBolusRecommendation?
 
+        loopDataManager.mutateSettings { settings in settings.insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [RepeatingScheduleValue(startTime: 0, value: isf)],
+            timeZone: .utcTimeZone
+        )!}
         loopDataManager.getLoopState { (_, loopState) in
             recommendedBolus = try? loopState.recommendBolus(consideringPotentialCarbEntry: self.dummyCarbEntry(), replacingCarbEntry: self.dummyReplacementEntry(), considerPositiveVelocityAndRC: false)
             exp.fulfill()
@@ -964,6 +983,12 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
                 StoredCarbEntry(startDate: $0, quantity: HKQuantity(unit: .gram(), doubleValue: carbValue)),
                 StoredCarbEntry(startDate: $0, quantity: HKQuantity(unit: .gram(), doubleValue: 10))
               ]})
+        
+        loopDataManager.mutateSettings { settings in settings.insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [RepeatingScheduleValue(startTime: 0, value: isf)],
+            timeZone: .utcTimeZone
+        )!}
                 
         let exp = expectation(description: #function)
         
@@ -977,7 +1002,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
             exp.fulfill()
         }
         wait(for: [exp], timeout: 100000.0)
-        XCTAssertEqual(recommendedBolus!.amount, expectedCarbsAmount + expectedBgCorrectionAmount + expectedCobCorrectionAmount, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.amount, (expectedCarbsAmount + expectedBgCorrectionAmount + expectedCobCorrectionAmount), accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, expectedBgCorrectionAmount, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, expectedCobCorrectionAmount, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, expectedCarbsAmount, accuracy: 0.01)
@@ -1015,10 +1040,10 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
             exp.fulfill()
         }
         wait(for: [exp], timeout: 100000.0)
-        XCTAssertEqual(recommendedBolus!.amount, expectedCarbsAmount + expectedBgCorrectionAmount + expectedCobCorrectionAmount, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, expectedBgCorrectionAmount, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.amount, getDosageRatioForHighAndStable() * (expectedCarbsAmount + expectedBgCorrectionAmount + expectedCobCorrectionAmount), accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * expectedBgCorrectionAmount, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, expectedCobCorrectionAmount, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, expectedCarbsAmount, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * expectedCarbsAmount, accuracy: 0.01)
         XCTAssertNil(recommendedBolus!.missingAmount)
     }
     
@@ -1034,10 +1059,10 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
             exp.fulfill()
         }
         wait(for: [exp], timeout: 100000.0)
-        XCTAssertEqual(recommendedBolus!.amount, 2.32, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, 1.82, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.amount, getDosageRatioForHighAndStable() * 2.32, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * 1.82, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 0.5, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 0.5, accuracy: 0.01)
         XCTAssertNil(recommendedBolus!.missingAmount)
     }
     
@@ -1054,10 +1079,10 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         }
         wait(for: [exp], timeout: 100000.0)
         XCTAssertEqual(recommendedBolus!.amount, 1, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, 1.82, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * 1.82, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 0.5, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.missingAmount!, 1.32, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 0.5, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.missingAmount!, getDosageRatioForHighAndStable() * 2.32 - 1, accuracy: 0.01)
     }
     
     func testLoopGetStateRecommendsManualBolusForBeneathRange() {
@@ -1108,10 +1133,10 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
 
         wait(for: [exp], timeout: 100000.0)
         XCTAssertEqual(recommendedBolus!.amount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, (176.21882841682697 - 230) / 45, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * (176.21882841682697 - 230) / 45, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 1.5, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.missingAmount!, 1.5 + (176.21882841682697 - 230) / 45, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 1.5, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.missingAmount!, getDosageRatioForHighAndStable() * (1.5 + (176.21882841682697 - 230) / 45), accuracy: 0.01)
     }
     
     func testLoopGetStateRecommendsManualBolusForBigAndSlowCarbEntry() {
@@ -1127,11 +1152,11 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         }
 
         wait(for: [exp], timeout: 100000.0)
-        XCTAssertEqual(recommendedBolus!.amount, 7.27, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.amount, getDosageRatioForHighAndStable() * 7.27, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, 0, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 9.99, accuracy: 0.01) // 9.99 and not 10 since there is 10 minute delay, leaving 0.01 remaining
-        XCTAssertEqual(recommendedBolus!.missingAmount!, 9.99 - 7.27, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 9.99, accuracy: 0.01) // 9.99 and not 10 since there is 10 minute delay, leaving 0.01 remaining
+        XCTAssertEqual(recommendedBolus!.missingAmount!, getDosageRatioForHighAndStable() * (9.99 - 7.27), accuracy: 0.01)
     }
 
     
@@ -1149,9 +1174,9 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
 
         wait(for: [exp], timeout: 100000.0)
         XCTAssertEqual(recommendedBolus!.amount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, (176.21882841682697 - 230) / 45, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * (176.21882841682697 - 230) / 45, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 0.5, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 0.5, accuracy: 0.01)
         XCTAssertNil(recommendedBolus!.missingAmount) // carbsAmount + bgCorrectionAmount < 0, so nothing is missing
     }
     
@@ -1169,7 +1194,7 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
 
         wait(for: [exp], timeout: 100000.0)
         XCTAssertEqual(recommendedBolus!.amount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, (176.21882841682697 - 230) / 45, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * (176.21882841682697 - 230) / 45, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 0.0, accuracy: 0.01)
         XCTAssertNil(recommendedBolus!.missingAmount)
@@ -1201,15 +1226,15 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
 
                 
         XCTAssertEqual(recommendedBolus1!.amount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus1!.bolusBreakdown!.bgCorrectionAmount, -0.5, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus1!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * -0.5, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus1!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus1!.bolusBreakdown!.carbsAmount!, 0.5, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus1!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 0.5, accuracy: 0.01)
         XCTAssertNil(recommendedBolus1!.missingAmount)
         
         XCTAssertEqual(recommendedBolus2!.amount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus2!.bolusBreakdown!.bgCorrectionAmount, -0.48, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus2!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * -0.48, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus2!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus2!.bolusBreakdown!.carbsAmount!, 0.48, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus2!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 0.48, accuracy: 0.01)
         XCTAssertNil(recommendedBolus2!.missingAmount)
     }
 
