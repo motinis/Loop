@@ -186,7 +186,7 @@ class LoopDataManagerTests: XCTestCase {
         }
         
         carbStore = MockCarbStore(for: test, predictGlucose: predictCarbGlucoseEffects, carbHistory: carbHistorySupplier?(now))
-        carbStore.insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
+        carbStore.insulinSensitivitySchedule = insulinSensitivitySchedule
         carbStore.carbRatioSchedule = carbRatioSchedule
         carbStore.carbsOnBoard = carbsOnBoardSupplier?(now)
         

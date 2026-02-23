@@ -949,11 +949,12 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         
         var recommendedBolus: ManualBolusRecommendation?
 
-        loopDataManager.mutateSettings { settings in settings.insulinSensitivitySchedule = InsulinSensitivitySchedule(
+        loopDataManager.mutateSettings { $0.insulinSensitivitySchedule = InsulinSensitivitySchedule(
             unit: .milligramsPerDeciliter,
             dailyItems: [RepeatingScheduleValue(startTime: 0, value: isf)],
             timeZone: .utcTimeZone
-        )!}
+        )! }
+
         loopDataManager.getLoopState { (_, loopState) in
             recommendedBolus = try? loopState.recommendBolus(consideringPotentialCarbEntry: self.dummyCarbEntry(), replacingCarbEntry: self.dummyReplacementEntry(), considerPositiveVelocityAndRC: false)
             exp.fulfill()
@@ -1033,6 +1034,12 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: expectedCarbsAmount * cir), startDate: now, foodType: nil, absorptionTime: TimeInterval(hours: 1))
         
         var recommendedBolus: ManualBolusRecommendation?
+        
+        loopDataManager.mutateSettings { $0.insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [RepeatingScheduleValue(startTime: 0, value: isf)],
+            timeZone: .utcTimeZone
+        )! }
 
         loopDataManager.getLoopState { (_, loopState) in
             
@@ -1040,10 +1047,10 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
             exp.fulfill()
         }
         wait(for: [exp], timeout: 100000.0)
-        XCTAssertEqual(recommendedBolus!.amount, getDosageRatioForHighAndStable() * (expectedCarbsAmount + expectedBgCorrectionAmount + expectedCobCorrectionAmount), accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * expectedBgCorrectionAmount, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.amount, expectedCarbsAmount + expectedBgCorrectionAmount + expectedCobCorrectionAmount, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, expectedBgCorrectionAmount, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, expectedCobCorrectionAmount, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * expectedCarbsAmount, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, expectedCarbsAmount, accuracy: 0.01)
         XCTAssertNil(recommendedBolus!.missingAmount)
     }
     
@@ -1054,15 +1061,22 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         var recommendedBolus: ManualBolusRecommendation?
 
         let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 5.0), startDate: now, foodType: nil, absorptionTime: TimeInterval(hours: 1.0))
+        
+        loopDataManager.mutateSettings { $0.insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [RepeatingScheduleValue(startTime: 0, value: 45)],
+            timeZone: .utcTimeZone
+        )! }
+        
         loopDataManager.getLoopState { (_, loopState) in
             recommendedBolus = try? loopState.recommendBolus(consideringPotentialCarbEntry: carbEntry, replacingCarbEntry: nil, considerPositiveVelocityAndRC: false)
             exp.fulfill()
         }
         wait(for: [exp], timeout: 100000.0)
-        XCTAssertEqual(recommendedBolus!.amount, getDosageRatioForHighAndStable() * 2.32, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * 1.82, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.amount, 2.32, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, 1.82, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 0.5, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 0.5, accuracy: 0.01)
         XCTAssertNil(recommendedBolus!.missingAmount)
     }
     
@@ -1073,16 +1087,22 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         var recommendedBolus: ManualBolusRecommendation?
 
         let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 5.0), startDate: now, foodType: nil, absorptionTime: TimeInterval(hours: 1.0))
+        
+        loopDataManager.mutateSettings { $0.insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [RepeatingScheduleValue(startTime: 0, value: 45)],
+            timeZone: .utcTimeZone
+        )! }
         loopDataManager.getLoopState { (_, loopState) in
             recommendedBolus = try? loopState.recommendBolus(consideringPotentialCarbEntry: carbEntry, replacingCarbEntry: nil, considerPositiveVelocityAndRC: false)
             exp.fulfill()
         }
         wait(for: [exp], timeout: 100000.0)
         XCTAssertEqual(recommendedBolus!.amount, 1, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * 1.82, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, 1.82, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 0.5, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.missingAmount!, getDosageRatioForHighAndStable() * 2.32 - 1, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 0.5, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.missingAmount!, 2.32 - 1, accuracy: 0.01)
     }
     
     func testLoopGetStateRecommendsManualBolusForBeneathRange() {
@@ -1126,6 +1146,11 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         var recommendedBolus: ManualBolusRecommendation?
 
         let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 15.0), startDate: now, foodType: nil, absorptionTime: TimeInterval(hours: 1.0))
+        loopDataManager.mutateSettings { $0.insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [RepeatingScheduleValue(startTime: 0, value: 45)],
+            timeZone: .utcTimeZone
+        )! }
         loopDataManager.getLoopState { (_, loopState) in
             recommendedBolus = try? loopState.recommendBolus(consideringPotentialCarbEntry: carbEntry, replacingCarbEntry: nil, considerPositiveVelocityAndRC: false)
             exp.fulfill()
@@ -1133,10 +1158,10 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
 
         wait(for: [exp], timeout: 100000.0)
         XCTAssertEqual(recommendedBolus!.amount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, getDosageRatioForHighAndStable() * (176.21882841682697 - 230) / 45, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, (176.21882841682697 - 230) / 45, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 1.5, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.missingAmount!, getDosageRatioForHighAndStable() * (1.5 + (176.21882841682697 - 230) / 45), accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 1.5, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.missingAmount!, 1.5 + (176.21882841682697 - 230) / 45, accuracy: 0.01)
     }
     
     func testLoopGetStateRecommendsManualBolusForBigAndSlowCarbEntry() {
@@ -1146,17 +1171,22 @@ class LoopDataManagerDosingTests: LoopDataManagerTests {
         var recommendedBolus: ManualBolusRecommendation?
 
         let carbEntry = NewCarbEntry(quantity: HKQuantity(unit: .gram(), doubleValue: 100.0), startDate: now, foodType: nil, absorptionTime: TimeInterval(hours: 4.0))
+        loopDataManager.mutateSettings { $0.insulinSensitivitySchedule = InsulinSensitivitySchedule(
+            unit: .milligramsPerDeciliter,
+            dailyItems: [RepeatingScheduleValue(startTime: 0, value: 45)],
+            timeZone: .utcTimeZone
+        )! }
         loopDataManager.getLoopState { (_, loopState) in
             recommendedBolus = try? loopState.recommendBolus(consideringPotentialCarbEntry: carbEntry, replacingCarbEntry: nil, considerPositiveVelocityAndRC: false)
             exp.fulfill()
         }
 
         wait(for: [exp], timeout: 100000.0)
-        XCTAssertEqual(recommendedBolus!.amount, getDosageRatioForHighAndStable() * 7.27, accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.amount, 7.27, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.bgCorrectionAmount, 0, accuracy: 0.01)
         XCTAssertEqual(recommendedBolus!.bolusBreakdown!.cobCorrectionAmount, 0, accuracy: 0.01)
-        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, getDosageRatioForHighAndStable() * 9.99, accuracy: 0.01) // 9.99 and not 10 since there is 10 minute delay, leaving 0.01 remaining
-        XCTAssertEqual(recommendedBolus!.missingAmount!, getDosageRatioForHighAndStable() * (9.99 - 7.27), accuracy: 0.01)
+        XCTAssertEqual(recommendedBolus!.bolusBreakdown!.carbsAmount!, 9.99, accuracy: 0.01) // 9.99 and not 10 since there is 10 minute delay, leaving 0.01 remaining
+        XCTAssertEqual(recommendedBolus!.missingAmount!, 9.99 - 7.27, accuracy: 0.01)
     }
 
     

@@ -31,9 +31,17 @@ class MockCarbStore: CarbStoreProtocol {
     
     var carbRatioSchedule: CarbRatioSchedule?
     
-    var insulinSensitivitySchedule: InsulinSensitivitySchedule?
+    private var insulinSensitivityScheduleApplyingOverrideHistoryWasExplicitlySet = false
     
-    var insulinSensitivityScheduleApplyingOverrideHistory: InsulinSensitivitySchedule? = InsulinSensitivitySchedule(
+    var insulinSensitivitySchedule: InsulinSensitivitySchedule? {
+        didSet {
+            if !insulinSensitivityScheduleApplyingOverrideHistoryWasExplicitlySet {
+                _insulinSensitivityScheduleApplyingOverrideHistory = insulinSensitivitySchedule
+            }
+        }
+    }
+    
+    private var _insulinSensitivityScheduleApplyingOverrideHistory: InsulinSensitivitySchedule? = InsulinSensitivitySchedule(
         unit: HKUnit.milligramsPerDeciliter,
         dailyItems: [
             RepeatingScheduleValue(startTime: 0.0, value: 45.0),
@@ -41,6 +49,16 @@ class MockCarbStore: CarbStoreProtocol {
         ],
         timeZone: .utcTimeZone
     )!
+    
+    var insulinSensitivityScheduleApplyingOverrideHistory: InsulinSensitivitySchedule? {
+        get {
+            _insulinSensitivityScheduleApplyingOverrideHistory
+        }
+        set {
+            insulinSensitivityScheduleApplyingOverrideHistoryWasExplicitlySet = true
+            _insulinSensitivityScheduleApplyingOverrideHistory = newValue
+        }
+    }
     
     var carbRatioScheduleApplyingOverrideHistory: CarbRatioSchedule? = CarbRatioSchedule(
         unit: .gram(),
