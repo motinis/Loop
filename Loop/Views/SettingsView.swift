@@ -143,15 +143,18 @@ public struct SettingsView: View {
             .sheet(item: $sheet) { sheet in
                 switch sheet {
                 case .therapySettings:
-                    TherapySettingsView(
-                        mode: .settings,
-                        viewModel: TherapySettingsViewModel(
-                            therapySettings: viewModel.therapySettings(),
-                            sensitivityOverridesEnabled: FeatureFlags.sensitivityOverridesEnabled,
-                            adultChildInsulinModelSelectionEnabled: FeatureFlags.adultChildInsulinModelSelectionEnabled,
-                            delegate: viewModel.therapySettingsViewModelDelegate
+                    NavigationView {
+                        TherapySettingsView(
+                            mode: .settings,
+                            viewModel: TherapySettingsViewModel(
+                                therapySettings: viewModel.therapySettings(),
+                                sensitivityOverridesEnabled: FeatureFlags.sensitivityOverridesEnabled,
+                                adultChildInsulinModelSelectionEnabled: FeatureFlags.adultChildInsulinModelSelectionEnabled,
+                                delegate: viewModel.therapySettingsViewModelDelegate
+                            )
                         )
-                    )
+                    }
+                    .navigationViewStyle(.stack)
                     .environmentObject(displayGlucosePreference)
                     .environment(\.dismissAction, self.dismiss)
                     .environment(\.appName, self.appName)
@@ -165,10 +168,13 @@ public struct SettingsView: View {
                 case .preferences:
                     PreferencesView(viewModel: PreferencesViewModel(preferencesProvider: Preferences.shared)).environmentObject(displayGlucosePreference)
                 case .profiles:
-                    ProfileView(viewModel: ProfileViewModel(therapySettings: self.viewModel.therapySettings(),
-                                                            sensitivityOverridesEnabled: FeatureFlags.sensitivityOverridesEnabled,
-                                                            adultChildInsulinModelSelectionEnabled: FeatureFlags.adultChildInsulinModelSelectionEnabled,
-                                                            delegate: self.viewModel.therapySettingsViewModelDelegate))
+                    NavigationView {
+                        ProfileView(viewModel: ProfileViewModel(therapySettings: self.viewModel.therapySettings(),
+                                                                sensitivityOverridesEnabled: FeatureFlags.sensitivityOverridesEnabled,
+                                                                adultChildInsulinModelSelectionEnabled: FeatureFlags.adultChildInsulinModelSelectionEnabled,
+                                                                delegate: self.viewModel.therapySettingsViewModelDelegate))
+                    }
+                    .navigationViewStyle(.stack)
                     .environmentObject(displayGlucosePreference)
                     .environment(\.dismissAction, self.dismiss)
                     .environment(\.appName, self.appName)
