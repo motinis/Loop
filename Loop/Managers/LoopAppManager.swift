@@ -607,7 +607,7 @@ extension LoopAppManager: TemporaryScheduleOverrideHistoryDelegate {
 
 extension LoopAppManager: ResetLoopManagerDelegate {
     func askUserToConfirmLoopReset() {
-        resetLoopManager.askUserToConfirmLoopReset()
+        resetLoopManager?.askUserToConfirmLoopReset()
     }
     
     func presentConfirmationAlert(confirmAction: @escaping (PumpManager?, @escaping () -> Void) -> Void, cancelAction: @escaping () -> Void) {
