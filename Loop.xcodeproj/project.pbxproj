@@ -509,6 +509,7 @@
 		CD38868A2F4711FC0018D245 /* GlucoseMomentumReductionSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3886852F4711FC0018D245 /* GlucoseMomentumReductionSelectionView.swift */; };
 		CD38868B2F4711FC0018D245 /* NegativeInsulinDamperSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3886862F4711FC0018D245 /* NegativeInsulinDamperSelectionView.swift */; };
 		CD38868C2F4711FC0018D245 /* SettingsView+underDevelopmentSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3886872F4711FC0018D245 /* SettingsView+underDevelopmentSection.swift */; };
+		CDB0AA752F61E3B800B66CF1 /* LoopDataManagerDosingTests+mmolL.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDB0AA742F61E3B800B66CF1 /* LoopDataManagerDosingTests+mmolL.swift */; };
 		DD3DBD292A33AFE9000F8B5B /* IntegralRetrospectiveCorrectionSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3DBD282A33AFE9000F8B5B /* IntegralRetrospectiveCorrectionSelectionView.swift */; };
 		DDC389F62A2B61750066E2E8 /* ApplicationFactorStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC389F52A2B61750066E2E8 /* ApplicationFactorStrategy.swift */; };
 		DDC389F82A2B620B0066E2E8 /* GlucoseBasedApplicationFactorStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC389F72A2B620B0066E2E8 /* GlucoseBasedApplicationFactorStrategy.swift */; };
@@ -1332,6 +1333,7 @@
 		CD3886852F4711FC0018D245 /* GlucoseMomentumReductionSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseMomentumReductionSelectionView.swift; sourceTree = "<group>"; };
 		CD3886862F4711FC0018D245 /* NegativeInsulinDamperSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NegativeInsulinDamperSelectionView.swift; sourceTree = "<group>"; };
 		CD3886872F4711FC0018D245 /* SettingsView+underDevelopmentSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView+underDevelopmentSection.swift"; sourceTree = "<group>"; };
+		CDB0AA742F61E3B800B66CF1 /* LoopDataManagerDosingTests+mmolL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LoopDataManagerDosingTests+mmolL.swift"; sourceTree = "<group>"; };
 		DD3DBD282A33AFE9000F8B5B /* IntegralRetrospectiveCorrectionSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegralRetrospectiveCorrectionSelectionView.swift; sourceTree = "<group>"; };
 		DDC389F52A2B61750066E2E8 /* ApplicationFactorStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationFactorStrategy.swift; sourceTree = "<group>"; };
 		DDC389F72A2B620B0066E2E8 /* GlucoseBasedApplicationFactorStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseBasedApplicationFactorStrategy.swift; sourceTree = "<group>"; };
@@ -1573,6 +1575,7 @@
 				C16B983F26B4898800256B05 /* DoseEnactorTests.swift */,
 				E9C58A7124DB489100487A17 /* LoopDataManagerTests.swift */,
 				E950CA9029002D9000B5B692 /* LoopDataManagerDosingTests.swift */,
+				CDB0AA742F61E3B800B66CF1 /* LoopDataManagerDosingTests+mmolL.swift */,
 				E9B3552C293592B40076AB04 /* MealDetectionManagerTests.swift */,
 				1D70C40026EC0F9D00C62570 /* SupportManagerTests.swift */,
 				A9F5F1F4251050EC00E7C8A4 /* ZipArchiveTests.swift */,
@@ -3766,6 +3769,7 @@
 				E9B3552D293592B40076AB04 /* MealDetectionManagerTests.swift in Sources */,
 				E950CA9129002D9000B5B692 /* LoopDataManagerDosingTests.swift in Sources */,
 				B4CAD8792549D2540057946B /* LoopCompletionFreshnessTests.swift in Sources */,
+				CDB0AA752F61E3B800B66CF1 /* LoopDataManagerDosingTests+mmolL.swift in Sources */,
 				1D8D55BC252274650044DBB6 /* BolusEntryViewModelTests.swift in Sources */,
 				A91E4C2124F867A700BE9213 /* StoredAlertTests.swift in Sources */,
 				1DA7A84224476EAD008257F0 /* AlertManagerTests.swift in Sources */,
